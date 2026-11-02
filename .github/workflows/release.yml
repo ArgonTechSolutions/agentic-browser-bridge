@@ -27,21 +27,35 @@ jobs:
           git fetch --tags
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then echo 'Tag already exists.'; exit 1; fi
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" --jq '.workflow_runs | any(.head_sha == "'"$GITHUB_SHA"'" and .event == "push")' | grep -qx true
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Build and test the exact release image
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          npm run check && npm test
+          docker build -t "ghcr.io/argontechsolutions/agentic-browser-bridge:$VERSION" .
+          ./scripts/test-container.sh "ghcr.io/argontechsolutions/agentic-browser-bridge:$VERSION"
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      - name: Push tested image and verify anonymous distribution
         id: image
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64
-          tags: ghcr.io/argontechsolutions/agentic-browser-bridge:${{ inputs.version }}
-          provenance: true
-          sbom: true
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          IMAGE="ghcr.io/argontechsolutions/agentic-browser-bridge:$VERSION"
+          docker push "$IMAGE"
+          ANON_CONFIG=$(mktemp -d)
+          trap 'rm -rf "$ANON_CONFIG"' EXIT
+          docker --config "$ANON_CONFIG" pull "$IMAGE"
+          DIGEST=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE")
+          printf 'digest=%s\n' "${DIGEST##*@}" >> "$GITHUB_OUTPUT"
       - name: Publish checksummed source bundle and prerelease
         env:
           VERSION: ${{ inputs.version }}
