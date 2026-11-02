@@ -6,3 +6,6 @@ Playwright, the Model Context Protocol SDK, and other open-source components.
 They retain their own licenses. Debian package copyright notices are included
 in the container under /usr/share/doc/*/copyright; JavaScript dependency
 licenses are included under /app/node_modules. See docs/architecture.md.
+
+Manrope font is distributed under the SIL Open Font License 1.1.
+See web/fonts/Manrope-OFL.txt (fontsource-variable/manrope 5.3.0).

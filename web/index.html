@@ -1,5 +1,30 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agentic Browser Bridge · Argon</title><link rel="stylesheet" href="/style.css"></head>
-<body><header><div><span class="brand">ARGON / TOOLS</span><h1>Agentic Browser Bridge</h1></div><div class="ownership"><span id="mode">Connecting…</span><button id="human">Take control</button><button id="agent">Return to agent</button></div></header>
-<main><div class="notice"><span id="reason" role="status" aria-live="polite">Connecting to your workspace…</span><button id="reconnect">Reconnect screen</button></div><div id="screen" aria-label="Remote browser workspace"></div></main>
-<footer>Your browser runs on the server. Disconnecting this viewer keeps the workspace running. Agent access pauses during human control.</footer><script type="module" src="/app.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agentic Browser Bridge · Argon</title>
+  <link rel="preload" href="/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="ownership">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="mode" role="status" aria-live="polite">Connecting…</span>
+      <button id="control" type="button" role="switch" aria-label="Agent control" aria-checked="false" aria-describedby="control-help" disabled>
+        <span class="switch-thumb" aria-hidden="true"></span>
+      </button>
+      <span id="control-help" class="sr-only">Turn on to give the agent control. Turn off to take control yourself.</span>
+    </div>
+  </header>
+  <main>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden>
+      <span id="message"></span>
+      <button id="reconnect" type="button" hidden>Reconnect</button>
+    </div>
+    <div id="screen" aria-label="Remote browser workspace"></div>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

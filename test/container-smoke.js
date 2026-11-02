@@ -19,10 +19,10 @@ try {
   const pageErrors = [];
   viewer.on('pageerror', e => pageErrors.push(e.message));
   await viewer.goto(viewerURL);
-  await viewer.getByRole('button', {name: 'Return to agent'}).waitFor();
+  await viewer.getByRole('switch', {name: 'Agent control'}).waitFor();
   await viewer.locator('#screen canvas').waitFor();
   await viewer.waitForFunction(() => document.querySelector('#screen canvas')?.width > 100);
-  await viewer.getByRole('button', {name: 'Return to agent'}).click();
+  await viewer.getByRole('switch', {name: 'Agent control'}).click();
   await viewer.getByText('Agent control', {exact: true}).waitFor();
   const fixture = `<title>Bridge smoke fixture</title><form onsubmit="localStorage.setItem('name',document.querySelector('#name').value);document.querySelector('#result').textContent=localStorage.name;return false"><label>Name <input id="name"></label><button>Save</button></form><p id="result"></p>`;
   execFileSync('docker', ['exec', container, 'node', '-e', `require('fs').writeFileSync('/tmp/fixture.html', ${JSON.stringify(fixture)})`]);
@@ -39,7 +39,7 @@ try {
   await viewer.keyboard.press('Control+a');
   await viewer.keyboard.type('human');
   await viewer.keyboard.press('Enter');
-  await viewer.getByRole('button', {name: 'Return to agent'}).click();
+  await viewer.getByRole('switch', {name: 'Agent control'}).click();
   await viewer.getByText('Agent control', {exact: true}).waitFor();
   assert.match((await call('browser_snapshot', {tab})).content[0].text, /human/);
   assert.equal((await call('browser_screenshot', {tab})).content[0].type, 'image');

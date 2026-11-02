@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Replace the viewer title, footer and two action buttons with a compact ownership indicator and one accessible toggle.
+- Match Argon's dark/violet palette and self-hosted Manrope typography.
+- Show screen recovery controls only when disconnected; preserve human takeover/drain behavior.
+
 ## 0.1.0-alpha.1
 
 - Persistent Chromium workspace with same-session agent and human access.
