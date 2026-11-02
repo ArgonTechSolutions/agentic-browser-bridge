@@ -60,6 +60,16 @@ test('single ownership switch handles keyboard, active handoff, recovery and res
     assert.equal(await page.evaluate(() => window.__rfb.viewOnly), true);
     await page.unroute('**/api/status');
     await page.getByText('Human control', {exact: true}).waitFor();
+    // Responses slower than the polling interval must still update ownership.
+    await page.route('**/api/status', async route => {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      await route.continue();
+    });
+    app.control.returnToAgent();
+    await page.getByText('Agent control', {exact: true}).waitFor({timeout: 8000});
+    await page.unroute('**/api/status');
+    await toggle.click();
+    await page.getByText('Human control', {exact: true}).waitFor();
     await page.evaluate(() => window.__rfb.dispatchEvent(new Event('disconnect')));
     await page.getByRole('button', {name: 'Reconnect', exact: true}).click();
     await page.waitForFunction(() => document.getElementById('notice').hidden);

@@ -8,6 +8,7 @@ let requestedMode;
 let screenState = 'connecting';
 let controlError = '';
 let refreshSequence = 0;
+let refreshing = false;
 
 function render() {
   const draining = state?.mode === 'human' && state.active;
@@ -55,7 +56,9 @@ function connect() {
 }
 
 async function refresh() {
-  const sequence = ++refreshSequence;
+  if (refreshing) return;
+  refreshing = true;
+  const sequence = refreshSequence;
   try {
     const res = await fetch('/api/status', {cache: 'no-store'});
     if (!res.ok) throw new Error('Workspace unavailable.');
@@ -66,6 +69,8 @@ async function refresh() {
   } catch {
     if (sequence !== refreshSequence) return;
     available = false;
+  } finally {
+    refreshing = false;
   }
   render();
 }
@@ -83,9 +88,11 @@ async function setMode(mode) {
     state = result;
   } catch (e) {
     controlError = e.message;
+    available = false;
   } finally {
     switching = false;
     requestedMode = undefined;
+    render();
     await refresh();
   }
 }
