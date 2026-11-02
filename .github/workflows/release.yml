@@ -13,7 +13,6 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: write
-      packages: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Validate immutable version and successful CI
@@ -37,37 +36,20 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           npm run check && npm test
-          docker build -t "ghcr.io/argontechsolutions/agentic-browser-bridge:$VERSION" .
-          ./scripts/test-container.sh "ghcr.io/argontechsolutions/agentic-browser-bridge:$VERSION"
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push tested image and verify anonymous distribution
-        id: image
+          docker build -t "argon/agentic-browser-bridge:$VERSION" .
+          ./scripts/test-container.sh "argon/agentic-browser-bridge:$VERSION"
+      - name: Export tested image and publish checksummed release
         env:
           VERSION: ${{ inputs.version }}
-        run: |
-          IMAGE="ghcr.io/argontechsolutions/agentic-browser-bridge:$VERSION"
-          docker push "$IMAGE"
-          ANON_CONFIG=$(mktemp -d)
-          trap 'rm -rf "$ANON_CONFIG"' EXIT
-          docker --config "$ANON_CONFIG" pull "$IMAGE"
-          DIGEST=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE")
-          printf 'digest=%s\n' "${DIGEST##*@}" >> "$GITHUB_OUTPUT"
-      - name: Publish checksummed source bundle and prerelease
-        env:
-          VERSION: ${{ inputs.version }}
-          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p dist
           git archive --format=tar.gz --prefix="agentic-browser-bridge-$VERSION/" HEAD > "dist/agentic-browser-bridge-$VERSION.tar.gz"
-          printf 'ghcr.io/argontechsolutions/agentic-browser-bridge@%s\n' "$IMAGE_DIGEST" > dist/IMAGE_DIGEST.txt
-          (cd dist && sha256sum "agentic-browser-bridge-$VERSION.tar.gz" > SHA256SUMS)
+          docker image save "argon/agentic-browser-bridge:$VERSION" | gzip -1 > "dist/agentic-browser-bridge-$VERSION-linux-amd64.tar.gz"
+          test "$(stat -c %s "dist/agentic-browser-bridge-$VERSION-linux-amd64.tar.gz")" -lt 2000000000
+          docker image inspect --format '{{.Id}}' "argon/agentic-browser-bridge:$VERSION" > dist/IMAGE_ID.txt
+          (cd dist && sha256sum *.tar.gz IMAGE_ID.txt > SHA256SUMS)
           cp docs/release-notes.md dist/NOTES.md
-          printf '\nContainer digest: `%s`\n' "$IMAGE_DIGEST" >> dist/NOTES.md
           git tag "v$VERSION"
           git push origin "v$VERSION"
-          gh release create "v$VERSION" --verify-tag --prerelease --title "v$VERSION — shared browser workspace alpha" --notes-file dist/NOTES.md dist/*.tar.gz dist/SHA256SUMS dist/IMAGE_DIGEST.txt
+          gh release create "v$VERSION" --verify-tag --prerelease --title "v$VERSION — shared browser workspace alpha" --notes-file dist/NOTES.md dist/*.tar.gz dist/SHA256SUMS dist/IMAGE_ID.txt

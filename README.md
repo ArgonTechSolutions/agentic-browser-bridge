@@ -32,7 +32,7 @@ Download the release bundle and checksum file from [GitHub Releases](https://git
 VERSION=0.1.0-alpha.1
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/agentic-browser-bridge-${VERSION}.tar.gz"
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/SHA256SUMS"
-sha256sum --check SHA256SUMS
+sha256sum --ignore-missing --check SHA256SUMS
 tar -xzf "agentic-browser-bridge-${VERSION}.tar.gz"
 cd "agentic-browser-bridge-${VERSION}"
 ./scripts/install.sh
@@ -41,7 +41,7 @@ abb init 17080
 abb up
 ```
 
-Checksums detect damaged or mismatched downloads; they are not an independent publisher signature. The installer copies versioned CLI files into your user data directory and links `~/.local/bin/abb`; it does not start a service. `abb up` explicitly pulls and starts the versioned container. Workspace initialization prompts privately for a viewer password and stores a salted hash in your mode-0600 configuration. It does not import website credentials.
+Checksums detect damaged or mismatched downloads; they are not an independent publisher signature. The installer copies versioned CLI files into your user data directory and links `~/.local/bin/abb`; it does not start a service. `abb up` downloads the versioned image archive from GitHub Releases, verifies its SHA-256 checksum and starts the container. No registry account/token is required. Workspace initialization prompts privately for a viewer password and stores a salted hash in your mode-0600 configuration. It does not import website credentials.
 
 For a source checkout, run `./scripts/abb init 17080` and `./scripts/abb up`, or build the image as described in [Development](docs/development.md).
 

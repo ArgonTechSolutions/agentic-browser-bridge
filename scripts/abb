@@ -20,6 +20,27 @@ check_runtime() {
     echo 'A rootless Docker daemon is required. Configure one for this Linux user; do not join a shared Docker group.' >&2; exit 1;
   }
 }
+ensure_image() (
+  image=$1
+  if docker image inspect "$image" >/dev/null 2>&1; then exit 0; fi
+  target=${image##*:}
+  [[ "$image" == "argon/agentic-browser-bridge:$target" && "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]] || {
+    echo 'Custom image is not available locally. Build or pull it explicitly first.' >&2; exit 1;
+  }
+  [[ "$(uname -m)" == x86_64 ]] || { echo 'Only Linux x86_64 image archives are currently published.' >&2; exit 1; }
+  archive="agentic-browser-bridge-$target-linux-amd64.tar.gz"
+  base="https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v$target"
+  mkdir -p "$state_root"
+  download=$(mktemp -d "$state_root/.download.XXXXXX")
+  trap 'rm -rf -- "$download"' EXIT
+  curl -fL --retry 2 "$base/SHA256SUMS" -o "$download/SHA256SUMS"
+  expected=$(awk -v name="$archive" '$2 == name {print $1}' "$download/SHA256SUMS")
+  [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || { echo 'Release checksum entry missing or invalid.' >&2; exit 1; }
+  curl -fL --retry 2 "$base/$archive" -o "$download/$archive"
+  printf '%s  %s\n' "$expected" "$download/$archive" | sha256sum --check -
+  docker image load -i "$download/$archive"
+  docker image inspect "$image" >/dev/null
+)
 wait_healthy() {
   local cid health
   cid=$(compose ps -q workspace)
@@ -53,10 +74,10 @@ case "$command" in
     [[ "$password_hash" =~ ^[a-f0-9]{32}:[a-f0-9]{128}$ ]] || { echo 'Invalid password hash.' >&2; exit 1; }
     mkdir -p "$state"; chmod 700 "$state"
     cp "$app_dir/compose.yaml" "$state/compose.yaml"
-    printf 'ABB_PORT=%s\nABB_IMAGE=ghcr.io/argontechsolutions/agentic-browser-bridge:%s\nABB_VIEWER_PASSWORD_HASH=%s\n' "$port" "$version" "$password_hash" > "$state/.env"
+    printf 'ABB_PORT=%s\nABB_IMAGE=argon/agentic-browser-bridge:%s\nABB_VIEWER_PASSWORD_HASH=%s\n' "$port" "$version" "$password_hash" > "$state/.env"
     echo "Workspace initialized at $state. No services started. Run abb up."
     ;;
-  up) need_workspace; check_runtime; compose pull; compose up -d; wait_healthy ;;
+  up) need_workspace; check_runtime; ensure_image "$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")"; compose up -d; wait_healthy ;;
   stop) need_workspace; check_runtime; compose stop ;;
   down) need_workspace; check_runtime; compose down ;;
   status) need_workspace; check_runtime; compose ps ;;
@@ -71,8 +92,8 @@ case "$command" in
     target=${1:-}
     [[ $# == 1 && "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]] || { echo 'Usage: abb update VERSION (explicit version required).' >&2; exit 2; }
     old_image=$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")
-    new_image="ghcr.io/argontechsolutions/agentic-browser-bridge:$target"
-    docker pull "$new_image"
+    new_image="argon/agentic-browser-bridge:$target"
+    ensure_image "$new_image"
     cp "$state/.env" "$state/.env.previous"
     sed "s|^ABB_IMAGE=.*|ABB_IMAGE=$new_image|" "$state/.env.previous" > "$state/.env"
     if compose up -d --force-recreate && wait_healthy; then

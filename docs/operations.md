@@ -6,7 +6,7 @@ Install the CLI from a checksummed release under the intended Linux account. Kee
 
 For noninteractive provisioning, supply `ABB_PASSWORD_HASH_FILE=/private/path/hash` containing an independently generated `saltHex:derivedKeyHex` scrypt hash (16-byte salt, N=16384, r=8, p=1, 64-byte output). Keep this file private. The tool does not read passwords from command-line arguments. Do not commit the resulting configuration. `ABB_HOME` and `ABB_BIN_DIR` override user-local installation locations; use absolute paths and keep them stable between invocations.
 
-Use distinct ports per workspace across the host. `abb init` refuses to overwrite an existing workspace; `abb up` starts it. Rootless Docker must start independently of an interactive login if the workspace should survive disconnection/reboot. Verify user lingering and daemon startup with your host administrator; the installer does not change those settings.
+Use distinct ports per workspace across the host. `abb init` refuses to overwrite an existing workspace; `abb up` verifies/loads its release image and starts it. Rootless Docker must start independently of an interactive login if the workspace should survive disconnection/reboot. Verify user lingering and daemon startup with your host administrator; the installer does not change those settings.
 
 ## Health and limits
 
@@ -21,9 +21,9 @@ Default limits are 1536 MiB RAM, 1.5 CPUs, 256 PIDs, 256 MiB shared memory and 2
 3. Run `abb update VERSION`; a moving latest tag is deliberately unsupported.
 4. Reconnect the viewer, verify ownership starts as human, and run a benign workflow before handing it back to agents.
 
-Update pulls the new image before changing configuration. If container startup/health fails, it restores `.env.previous` and recreates the old image. This does **not** roll back profile writes. Browser versions can migrate profiles incompatibly. For a complete rollback, restore a pre-update volume backup with the workspace stopped, then use the previous image/CLI. Do not repeatedly downgrade a live profile.
+Update downloads the target image archive from GitHub Releases, checks its checksum and loads it before changing configuration. Already-loaded versions can be used offline. If container startup/health fails, it restores `.env.previous` and recreates the old image. This does **not** roll back profile writes. Browser versions can migrate profiles incompatibly. For a complete rollback, restore a pre-update volume backup with the workspace stopped, then use the previous image/CLI. Do not repeatedly downgrade a live profile.
 
-The CLI uses the image tag saved in the workspace .env. Record its exact digest with `docker inspect` for incident/release verification. Old CLI releases remain under the user data directory. Before upgrading across a breaking release, follow its migration notes; the first alpha makes no stable-schema compatibility promise.
+The CLI uses the image tag saved in the workspace .env. Record its exact image ID with `docker image inspect` for incident/release verification. Old CLI releases remain under the user data directory. Before upgrading across a breaking release, follow its migration notes; the first alpha makes no stable-schema compatibility promise.
 
 ## Backups
 
