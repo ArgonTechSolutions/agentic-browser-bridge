@@ -1,0 +1,8 @@
+Agentic Browser Bridge
+Copyright 2026 Argon Tech Solutions
+
+This project uses Chromium, noVNC, x11vnc, Xvfb, Openbox, websockify,
+Playwright, the Model Context Protocol SDK, and other open-source components.
+They retain their own licenses. Debian package copyright notices are included
+in the container under /usr/share/doc/*/copyright; JavaScript dependency
+licenses are included under /app/node_modules. See docs/architecture.md.

@@ -1,0 +1,20 @@
+{
+  "name": "@argontechsolutions/agentic-browser-bridge",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "description": "Persistent per-user browser workspaces for agents and human takeover",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {"node": ">=24"},
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:browser": "node --test test/browser.integration.js",
+    "check": "node --check src/auth.js && node --check src/server.js && node --check src/browser.js && node --check src/mcp.js && node --check web/app.js && bash -n scripts/abb scripts/install.sh scripts/container-entrypoint.sh"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "playwright-core": "1.64.1",
+    "ws": "8.22.1",
+    "zod": "4.6.7"
+  }
+}

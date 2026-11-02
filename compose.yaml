@@ -1,0 +1,22 @@
+services:
+  workspace:
+    image: ${ABB_IMAGE:-ghcr.io/argontechsolutions/agentic-browser-bridge:0.1.0-alpha.1}
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "127.0.0.1:${ABB_PORT:-17080}:8080"
+    environment:
+      ABB_VIEWER_PASSWORD_HASH: ${ABB_VIEWER_PASSWORD_HASH:?Run abb init to configure viewer authentication}
+      ABB_ALLOWED_HOSTS: ${ABB_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
+    volumes:
+      - browser-data:/data
+    shm_size: 256m
+    mem_limit: ${ABB_MEMORY:-1536m}
+    cpus: ${ABB_CPUS:-1.5}
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m,mode=1777
+volumes:
+  browser-data:
