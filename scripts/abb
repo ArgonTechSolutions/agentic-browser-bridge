@@ -75,11 +75,11 @@ case "$command" in
     docker pull "$new_image"
     cp "$state/.env" "$state/.env.previous"
     sed "s|^ABB_IMAGE=.*|ABB_IMAGE=$new_image|" "$state/.env.previous" > "$state/.env"
-    if compose up -d && wait_healthy; then
+    if compose up -d --force-recreate && wait_healthy; then
       echo "Updated to $target. Previous image: $old_image. Profile preserved; control returns to human."
     else
       cp "$state/.env.previous" "$state/.env"
-      compose up -d
+      compose up -d --force-recreate
       echo 'Update failed; previous image configuration restored. Check abb status/logs. Profile was not rolled back.' >&2
       exit 1
     fi
