@@ -2,9 +2,9 @@
 
 ## Components and boundaries
 
-One workspace container runs Chromium with a persistent `/data/profile`, downloads under `/data/downloads`, Xvfb, Openbox, x11vnc, websockify and the Node.js controller. noVNC runs in the human's web browser and displays that same X session. Playwright connects to Chromium through container-local CDP. This gives people access to browser chrome/dialogs while agent tools operate web pages.
+One workspace container runs Chromium with a persistent `/data/profile`, downloads under `/data/downloads`, Xvfb, Openbox, x11vnc and the Node.js controller. noVNC runs in the human's web browser and displays that same X session. Playwright connects to Chromium through container-local CDP. This gives people access to browser chrome/dialogs while agent tools operate web pages.
 
-The host publishes only `127.0.0.1:PORT -> 8080`. The viewer handles its UI, control ownership and WebSocket proxying. Host/Origin/Fetch Metadata checks reject ordinary cross-origin control requests and DNS rebinding. These checks are not authentication. Each HTTP request and WebSocket upgrade also requires the per-workspace operator password. Only a salted scrypt hash is stored in private configuration. Use SSH forwarding or TLS to protect Basic authentication in transit.
+The host publishes only `127.0.0.1:PORT -> 8080`. The viewer handles its UI, control ownership and authenticated WebSocket-to-raw-TCP proxying. There is no unauthenticated internal WebSocket-to-VNC listener for websites running inside Chromium to reach. Host/Origin/Fetch Metadata checks reject ordinary cross-origin control requests and DNS rebinding. These checks are not authentication. Each HTTP request and WebSocket upgrade also requires the per-workspace operator password. Only a salted scrypt hash is stored in private configuration. Use SSH forwarding or TLS to protect Basic authentication in transit.
 
 MCP uses stdio: `abb mcp` executes the MCP adapter as the unprivileged container user. It sends tool calls to a mode-0600 Unix socket inside a mode-0700 directory. MCP has no TCP listener. The browser container never receives the Docker socket. The host-side CLI necessarily uses the owning user's Docker daemon.
 

@@ -23,7 +23,6 @@ fs.writeFileSync(file, JSON.stringify(prefs), {mode: 0o600});
 NODE
 openbox >/tmp/openbox.log 2>&1 & pids+=("$!")
 x11vnc -display :99 -localhost -rfbport 5900 -nopw -forever -shared -noxdamage >/tmp/x11vnc.log 2>&1 & pids+=("$!")
-websockify --heartbeat=30 127.0.0.1:6080 127.0.0.1:5900 >/tmp/websockify.log 2>&1 & pids+=("$!")
 # Chromium's sandbox is unavailable with the container's no-new-privileges policy.
 # Isolation comes from this unprivileged, capability-dropped container. See SECURITY.md.
 chromium --no-sandbox --disable-dev-shm-usage --no-first-run --no-default-browser-check \

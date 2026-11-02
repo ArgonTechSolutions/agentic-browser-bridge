@@ -1,4 +1,5 @@
 import http from 'node:http';
+import net from 'node:net';
 import {readFile, mkdir, chmod, unlink, realpath} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -29,7 +30,7 @@ export function allowedRequest(req, hosts) {
   return true;
 }
 
-export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb/control.sock', endpoint, novncRoot = '/opt/novnc', vncURL = 'ws://127.0.0.1:6080', hosts = ['localhost', '127.0.0.1', '[::1]'], passwordHash = process.env.ABB_VIEWER_PASSWORD_HASH} = {}) {
+export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb/control.sock', endpoint, novncRoot = '/opt/novnc', vncPort = 5900, hosts = ['localhost', '127.0.0.1', '[::1]'], passwordHash = process.env.ABB_VIEWER_PASSWORD_HASH} = {}) {
   checkHash(passwordHash);
   const control = new Control();
   const browser = new BrowserTools(control, endpoint);
@@ -67,20 +68,29 @@ export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb
     if (req.url !== '/websockify' || !req.headers.origin || !allowedRequest(req, hosts) || !authenticated(req, passwordHash)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
     wss.handleUpgrade(req, socket, head, client => {
       sockets.add(client);
-      const upstream = new WebSocket(vncURL, ['binary']);
+      // Raw TCP cannot be reached as a WebSocket by arbitrary pages in Chromium.
+      // Only this authenticated/Origin-checked endpoint exposes a web transport.
+      const upstream = net.createConnection({host: '127.0.0.1', port: vncPort});
       const queue = [];
       let queuedBytes = 0;
+      let connected = false;
       client.on('message', data => {
-        if (upstream.readyState === WebSocket.OPEN) upstream.send(data);
-        else if (upstream.readyState === WebSocket.CONNECTING && queuedBytes + data.length <= 65536) { queue.push(data); queuedBytes += data.length; }
+        if (connected) {
+          if (upstream.writableLength > 1024 * 1024) { client.close(); return; }
+          upstream.write(data);
+        } else if (queuedBytes + data.length <= 65536) { queue.push(data); queuedBytes += data.length; }
         else client.close();
       });
-      upstream.on('open', () => { for (const data of queue.splice(0)) upstream.send(data); });
-      upstream.on('message', data => { if (client.readyState === WebSocket.OPEN) client.send(data); });
+      upstream.on('connect', () => { connected = true; for (const data of queue.splice(0)) upstream.write(data); });
+      upstream.on('data', data => {
+        if (client.readyState !== WebSocket.OPEN) return;
+        if (client.bufferedAmount > 8 * 1024 * 1024) { client.close(); return; }
+        client.send(data, {binary: true});
+      });
       upstream.on('error', () => client.close());
       upstream.on('close', () => client.close());
-      client.on('error', () => upstream.close());
-      client.on('close', () => { sockets.delete(client); upstream.close(); });
+      client.on('error', () => upstream.destroy());
+      client.on('close', () => { sockets.delete(client); upstream.destroy(); });
     });
   });
   // No network MCP listener: only same-UID local processes can access this socket.

@@ -3,7 +3,7 @@ LABEL org.opencontainers.image.source="https://github.com/ArgonTechSolutions/age
       org.opencontainers.image.title="Agentic Browser Bridge" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium xvfb x11vnc novnc websockify openbox fonts-liberation fonts-noto-color-emoji \
+    chromium xvfb x11vnc novnc openbox fonts-liberation fonts-noto-color-emoji \
     dbus-x11 tini ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN cp -aL /usr/share/novnc /opt/novnc
 WORKDIR /app
