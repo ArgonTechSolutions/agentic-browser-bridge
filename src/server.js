@@ -57,7 +57,7 @@ export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb
       const file = await realpath(path.resolve(root, relative));
       if (!file.startsWith(root + path.sep)) throw new Error('Invalid path.');
       const body = await readFile(file);
-      const types = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json'};
+      const types = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2'};
       res.writeHead(200, {'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store'});
       res.end(req.method === 'HEAD' ? undefined : body);
     } catch (e) { fail(res, e); }

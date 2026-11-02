@@ -24,6 +24,7 @@ fi
 npx playwright-core install --with-deps chromium
 CHROMIUM_PATH=$(node --input-type=module -e "import {chromium} from 'playwright-core'; console.log(chromium.executablePath())")
 export CHROMIUM_PATH
+npm run test:ui
 npm run test:browser
 node test/container-smoke.js
 ABB_VIEWER_PASSWORD_HASH="$hash" docker compose config --quiet
