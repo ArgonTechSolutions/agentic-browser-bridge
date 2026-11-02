@@ -1,9 +1,7 @@
-First alpha of Agentic Browser Bridge, an Argon tool for persistent server-hosted browser workspaces shared by agents and humans.
+A simpler viewer, styled after Argon’s current website. The normal toolbar shows only who has control and one accessible switch. Product title, footer and permanent explanation/reconnect rows are removed. Connection recovery controls appear only when needed. Manrope is self-hosted with its OFL license; dark surfaces and violet accents follow Argon’s palette.
 
-Includes per-user rootless Docker workspaces, mandatory per-workspace viewer authentication, stdio MCP tools, noVNC access to the same browser, explicit human takeover/resume, persistent profiles/downloads, a user-local installer, explicit image updates with startup rollback, and backup guidance.
+The switch supports keyboard operation and preserves the human takeover/drain behavior. Ownership polling handles slow connections without leaving controls stuck, disables stale controls on failed status checks, and ignores late events from replaced screen connections.
 
-Target: Linux x86_64 servers. Each Linux user needs their own rootless Docker daemon. Private SSH forwarding is the supported access default; no tailnet or server configuration changes automatically.
+Existing MCP configuration, profiles and downloads remain compatible. Use `abb update 0.1.0-alpha.2`; updating recreates/restarts the workspace and resets ownership to human. Take a consistent private backup before updating. No bootstrap/client configuration changes are required.
 
-Alpha boundaries: website automation/challenges may fail; profiles contain sensitive data; Chromium runs without its process sandbox inside a restricted container. No arbitrary desktop automation, notification service, or agent scheduler is included. Read SECURITY.md and the operations guide. CI does not replace rootless-host live acceptance.
-
-Installation uses checksummed prebuilt image archives attached to this public GitHub release. No container-registry account or token is required. Registry publication is not part of this alpha.
+Linux x86_64 alpha. The published image archive is checksum-verified by the CLI; no registry account is required. Existing website-automation and container-security limitations remain documented in SECURITY.md and the operations guide.

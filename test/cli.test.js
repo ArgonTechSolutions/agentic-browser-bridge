@@ -11,7 +11,7 @@ test('installer and initialization isolate workspace data and refuse overwrite',
     await writeFile(env.ABB_PASSWORD_HASH_FILE, '00'.repeat(16) + ':' + '11'.repeat(64), {mode: 0o600});
     execFileSync('bash', ['scripts/install.sh'], {env});
     const cli = path.join(dir, 'bin/abb');
-    assert.match(await readlink(cli), /releases\/0\.1\.0-alpha\.1\/scripts\/abb$/);
+    assert.match(await readlink(cli), /releases\/0\.1\.0-alpha\.2\/scripts\/abb$/);
     execFileSync(cli, ['init', '17080'], {env});
     execFileSync(cli, ['init', '17081'], {env: {...env, ABB_WORKSPACE: 'research'}});
     const first = path.join(env.ABB_HOME, 'workspaces/default/.env');
@@ -43,12 +43,12 @@ case "$*" in
 esac
 `, {mode: 0o700});
     env.PATH = path.join(dir, 'bin') + ':' + env.PATH;
-    execFileSync(cli, ['update', '0.1.0-alpha.2'], {env});
+    execFileSync(cli, ['update', '0.1.0-alpha.3'], {env});
     const config = path.join(env.ABB_HOME, 'workspaces/default/.env');
     const successful = await readFile(config, 'utf8');
-    assert.match(successful, /:0.1.0-alpha.2/);
+    assert.match(successful, /:0.1.0-alpha.3/);
     assert.match(successful, /ABB_VIEWER_PASSWORD_HASH=/);
-    const failed = spawnSync(cli, ['update', '0.1.0-alpha.3'], {env: {...env, ABB_TEST_FAIL: '1'}});
+    const failed = spawnSync(cli, ['update', '0.1.0-alpha.4'], {env: {...env, ABB_TEST_FAIL: '1'}});
     assert.notEqual(failed.status, 0);
     assert.equal(await readFile(config, 'utf8'), successful);
     assert.match(await readFile(env.ABB_TEST_LOG, 'utf8'), /up -d --force-recreate/);
@@ -80,8 +80,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in -o) output=$2; shift 2;; https://*) url=$1; shift;; *) shift;; esac
 done
 case "$url" in
-  */SHA256SUMS) hash=$(printf fixture | sha256sum); printf '%s  agentic-browser-bridge-0.1.0-alpha.1-linux-amd64.tar.gz\\n' "\${hash%% *}" > "$output";;
-  */agentic-browser-bridge-0.1.0-alpha.1-linux-amd64.tar.gz) if [[ "\${ABB_CORRUPT:-}" == 1 ]]; then printf corrupt > "$output"; else printf fixture > "$output"; fi;;
+  */SHA256SUMS) hash=$(printf fixture | sha256sum); printf '%s  agentic-browser-bridge-0.1.0-alpha.2-linux-amd64.tar.gz\\n' "\${hash%% *}" > "$output";;
+  */agentic-browser-bridge-0.1.0-alpha.2-linux-amd64.tar.gz) if [[ "\${ABB_CORRUPT:-}" == 1 ]]; then printf corrupt > "$output"; else printf fixture > "$output"; fi;;
   *) exit 1;;
 esac
 `, {mode: 0o700});

@@ -1,6 +1,6 @@
 {
   "name": "@argontechsolutions/agentic-browser-bridge",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "description": "Persistent per-user browser workspaces for agents and human takeover",
   "type": "module",

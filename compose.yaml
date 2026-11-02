@@ -1,6 +1,6 @@
 services:
   workspace:
-    image: ${ABB_IMAGE:-argon/agentic-browser-bridge:0.1.0-alpha.1}
+    image: ${ABB_IMAGE:-argon/agentic-browser-bridge:0.1.0-alpha.2}
     pull_policy: never
     restart: unless-stopped
     stop_grace_period: 30s

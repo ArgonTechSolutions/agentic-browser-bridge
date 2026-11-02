@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-alpha.2
 
 - Replace the viewer title, footer and two action buttons with a compact ownership indicator and one accessible toggle.
 - Match Argon's dark/violet palette and self-hosted Manrope typography.

@@ -4,7 +4,7 @@
 
 Run a persistent Chromium browser on your Linux server. Let Codex or another MCP client follow web workflows. Open the same browser remotely when you want to watch, sign in, or take over. Disconnect your computer while the workspace keeps running.
 
-**Status: 0.1.0-alpha.1.** Single-user workspaces; Linux x86_64 container target. A separate workspace and rootless Docker runtime are required for each Linux user. This is a browser bridge, not a new browser engine or a replacement for a full desktop automation platform.
+**Status: 0.1.0-alpha.2.** Single-user workspaces; Linux x86_64 container target. A separate workspace and rootless Docker runtime are required for each Linux user. This is a browser bridge, not a new browser engine or a replacement for a full desktop automation platform.
 
 ```text
 Codex / MCP client ── stdio ── abb mcp ── private Unix socket ─┐
@@ -29,7 +29,7 @@ Prerequisites: Linux x86_64 server, **your own rootless Docker daemon**, Docker 
 Download the release bundle and checksum file from [GitHub Releases](https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases). For example:
 
 ```bash
-VERSION=0.1.0-alpha.1
+VERSION=0.1.0-alpha.2
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/agentic-browser-bridge-${VERSION}.tar.gz"
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/SHA256SUMS"
 sha256sum --ignore-missing --check SHA256SUMS
@@ -53,7 +53,7 @@ From your computer:
 ssh -N -L 17080:127.0.0.1:17080 your-server-alias
 ```
 
-Open **http://127.0.0.1:17080** in your local browser. Sign in to the viewer as `operator` with the password you chose, then authenticate to websites inside this remote browser. Click **Return to agent** when ready, and **Take control** before entering credentials or intervening. You can close the viewer without stopping the server browser.
+Open **http://127.0.0.1:17080** in your local browser. Sign in to the viewer as `operator` with the password you chose, then authenticate to websites inside this remote browser. Turn on the **Agent control** switch when ready to hand over; turn it off to take control before entering credentials or intervening. You can close the viewer without stopping the server browser.
 
 SSH authenticates network access; the viewer also requires its per-workspace password, including on loopback. If you use Tailscale, the SSH host can be reachable through your tailnet; no inbound connection to your personal computer is needed. For a direct private HTTPS viewer, see [Private access](docs/private-access.md). Do not expose the viewer publicly or remove its loopback binding without application authentication.
 
@@ -103,7 +103,7 @@ abb logs                       # bounded recent logs
 abb stop                       # stops the browser; profile retained
 abb backup ./browser-private.tar.gz  # requires stopped workspace
 abb up
-abb update 0.1.0-alpha.1        # explicit image version; restart, profile retained
+abb update 0.1.0-alpha.2        # explicit image version; restart, profile retained
 abb down                       # removes container/network; profile retained
 ```
 
