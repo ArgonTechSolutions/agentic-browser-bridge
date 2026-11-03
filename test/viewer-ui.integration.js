@@ -82,6 +82,21 @@ test('single ownership switch handles keyboard, active handoff, recovery and res
     assert.equal(await page.locator('footer,h1').count(), 0);
     assert.equal(await page.getByRole('button', {name: 'Reconnect', exact: true}).isVisible(), false);
     if (process.env.ABB_PREVIEW_DIR) await page.screenshot({path: path.join(process.env.ABB_PREVIEW_DIR, 'browser-controls-mobile.png'), clip: {x:0,y:0,width:320,height:84}});
+    const idle = page.getByRole('switch', {name:'Idle shutdown',exact:true});
+    const idleBounds=await idle.boundingBox();const ownerBounds=await toggle.boundingBox();
+    assert.ok(idleBounds.x < ownerBounds.x);assert.ok(idleBounds.width>=44 && idleBounds.height>=44);
+    await idle.click();await page.waitForFunction(()=>document.getElementById('idle').getAttribute('aria-checked')==='false');
+    assert.equal(app.lifecycle.enabled,false);
+    await page.reload();await page.waitForFunction(()=>!document.getElementById('idle').disabled);
+    assert.equal(await idle.getAttribute('aria-checked'),'false');
+    await page.evaluate(()=>fetch('/api/logout',{method:'POST',headers:{'X-ABB-Control':'1'}}));
+    await page.goto(`http://127.0.0.1:${app.viewer.address().port}`);
+    await page.getByLabel('Workspace password').fill('fixture-password');
+    await page.getByRole('button',{name:'Sign in',exact:true}).click();
+    await page.getByText('Your browser is set to keep running. Do you still need it?',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Enable idle shutdown',exact:true}).click();
+    await page.waitForFunction(()=>document.getElementById('idle').getAttribute('aria-checked')==='true');
+    assert.equal(app.lifecycle.enabled,true);
     assert.deepEqual(errors, []);
   } finally {
     finish?.();
