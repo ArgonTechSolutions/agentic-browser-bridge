@@ -2,7 +2,6 @@
 set -euo pipefail
 umask 077
 mkdir -p /tmp/abb /data/profile /data/downloads
-rm -f /tmp/abb/control.sock
 # A fresh container has no surviving Chromium process. Remove only its stale lock links.
 rm -f /data/profile/SingletonLock /data/profile/SingletonSocket /data/profile/SingletonCookie
 pids=()
