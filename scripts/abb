@@ -10,7 +10,11 @@ state="$state_root/workspaces/$name"
 project="abb-$(id -u)-$name"
 command=${1:-help}
 shift || true
-compose() { docker compose --project-name "$project" --env-file "$state/.env" -f "$state/compose.yaml" "$@"; }
+compose() {
+  local files=(-f "$state/compose.yaml")
+  [[ ! -f "$state/override.yaml" ]] || files+=(-f "$state/override.yaml")
+  docker compose --project-name "$project" --env-file "$state/.env" "${files[@]}" "$@"
+}
 need_workspace() { [[ -f "$state/.env" && -f "$state/compose.yaml" ]] || { echo 'Run abb init first.' >&2; exit 1; }; }
 check_runtime() {
   command -v docker >/dev/null || { echo 'Install rootless Docker and Docker Compose first.' >&2; exit 1; }
@@ -82,7 +86,7 @@ case "$command" in
     keep_running=false
     if [[ "${1:-}" == --no-idle-shutdown ]]; then keep_running=true; shift; fi
     [[ $# == 0 ]] || { echo 'Usage: abb up [--no-idle-shutdown]' >&2; exit 2; }
-     check_runtime; ensure_image "$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")"; compose up -d; wait_healthy
+    check_runtime; ensure_image "$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")"; compose up -d; wait_healthy
     if "$keep_running"; then
       compose exec -T --user node workspace node --input-type=module -e 'import http from "node:http"; const r=http.request({socketPath:"/tmp/abb/control.sock",path:"/policy",method:"POST",headers:{"Content-Type":"application/json"}},s=>{s.resume();s.on("end",()=>{if(s.statusCode!==200)process.exitCode=1;});});r.on("error",()=>process.exit(1));r.end(JSON.stringify({enabled:false}));' </dev/null
     fi
@@ -128,7 +132,7 @@ case "$command" in
   version) printf '%s\n' "$version" ;;
   help|--help|-h)
     echo 'Agentic Browser Bridge — per-user persistent browser workspace'
-    echo 'Usage: abb {init [PORT]|up|stop|down|status|logs|mcp|update VERSION|backup FILE|version}'
+    echo 'Usage: abb {init [PORT]|up [--no-idle-shutdown]|stop|down|status|logs|mcp|update VERSION|backup FILE|version}'
     echo 'Select another workspace with ABB_WORKSPACE=name. Each Linux user needs their own rootless Docker daemon.'
     ;;
   *) echo 'Unknown command. Run abb help.' >&2; exit 2 ;;

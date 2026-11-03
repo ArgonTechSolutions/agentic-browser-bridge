@@ -50,3 +50,5 @@ Stop the workspace, derive a new hash using the same private terminal provisioni
 - CLI installation is Linux-only; viewers and SSH MCP clients may run on other operating systems. ARM images are not yet validated.
 
 After CLI installation, `abb update` refreshes the workspace Compose file and retains both previous image configuration and packaging for health-failure rollback. Custom packaging edits should be reviewed before upgrading. Idle settings, login session behavior and profile limitations are documented in [idle shutdown](idle-shutdown.md).
+
+An optional private `override.yaml` beside the workspace Compose file is included by CLI lifecycle commands and preserved across updates. Use it for deployment-specific loopback viewer ports or resource overrides; never expose CDP or raw VNC. Inspect effective configuration before applying it.
