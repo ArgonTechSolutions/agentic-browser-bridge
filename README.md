@@ -4,7 +4,7 @@
 
 Run a persistent Chromium browser on your Linux server. Let Codex or another MCP client follow web workflows. Open the same browser remotely when you want to watch, sign in, or take over. Disconnect your computer while an active agent workflow keeps running; released workspaces can sleep to save RAM.
 
-**Status: 0.1.0-alpha.3.** Single-user workspaces; Linux x86_64 container target. A separate workspace and rootless Docker runtime are required for each Linux user. This is a browser bridge, not a new browser engine or a replacement for a full desktop automation platform.
+**Status: 0.1.0-alpha.4.** Single-user workspaces; Linux x86_64 container target. A separate workspace and rootless Docker runtime are required for each Linux user. This is a browser bridge, not a new browser engine or a replacement for a full desktop automation platform.
 
 ```text
 Codex / MCP client ── stdio ── abb mcp ── private Unix socket ─┐
@@ -29,7 +29,7 @@ Prerequisites: Linux x86_64 server, **your own rootless Docker daemon**, Docker 
 Download the release bundle and checksum file from [GitHub Releases](https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases). For example:
 
 ```bash
-VERSION=0.1.0-alpha.3
+VERSION=0.1.0-alpha.4
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/agentic-browser-bridge-${VERSION}.tar.gz"
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/SHA256SUMS"
 sha256sum --ignore-missing --check SHA256SUMS
@@ -103,7 +103,7 @@ abb logs                       # bounded recent logs
 abb stop                       # stops the browser; profile retained
 abb backup ./browser-private.tar.gz  # requires stopped workspace
 abb up
-abb update 0.1.0-alpha.3        # explicit image version; restart, profile retained
+abb update 0.1.0-alpha.4        # explicit image version; restart, profile retained
 abb down                       # removes container/network; profile retained
 ```
 
@@ -124,3 +124,5 @@ See [Development](docs/development.md) for checks and container smoke tests. Rep
 ## Idle shutdown and phone access
 
 The **Idle shutdown** switch is at the top left. It defaults to 30 minutes, followed by a 2-minute grace period, and only runs when there is no connected viewer, active agent workflow, pending human handoff, operation or download. `browser_release` completes a workflow and permits sleep; status polling is not activity. Use `abb up --no-idle-shutdown` or turn the switch off to keep running. The next viewer sign-in reminds you of that choice. A lightweight login/wake controller remains available while Chromium and its display sleep. See [idle semantics](docs/idle-shutdown.md) and [private HTTPS access](docs/private-access.md).
+
+Optional [proxy connectors](docs/proxy-connectors.md) support generic HTTP/HTTPS/SOCKS5 proxies and a standalone Tailscale companion for private browsing.

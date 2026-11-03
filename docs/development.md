@@ -7,6 +7,7 @@ npm ci --ignore-scripts
 npm run check
 npm test
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
+CHROMIUM_PATH=/usr/bin/chromium npm run test:proxy
 npm audit --omit=dev
 ```
 
@@ -34,3 +35,7 @@ Public source must remain host-independent. Deployment instance details belong i
 Use SemVer with prerelease suffixes during alpha. Update VERSION, package.json/package-lock.json, compose.yaml, examples/tests and CHANGELOG.md together. Prepare docs/release-notes.md. Push to main and require successful CI on that exact commit. Dispatch Release with the version. It refuses existing tags/releases, checks successful push CI for the SHA, builds and smoke-tests the exact amd64 image, exports a compressed Docker image archive, tags the source and creates a public GitHub prerelease with source/install bundle, image archive, SHA256SUMS and image ID.
 
 No moving latest tag is published. Image archives are downloaded anonymously from public GitHub Releases; no registry credential is needed. A future registry mirror is optional. Download/verify release assets and record live acceptance separately from CI. Checksums are integrity checks, not independent signatures. Browser security refreshes get a new version. Publication does not authorize deployment.
+
+Proxy configuration and the reusable Tailscale companion are described in [proxy connectors](proxy-connectors.md). The standalone connector lives under `connectors/tailscale/`; it does not depend on browser lifecycle.
+
+Optional connector validation: `./scripts/test-connector.sh` starts only an unenrolled disposable connector and removes its own network/volume. Set `ABB_CONNECTOR_TEST_IMAGE` to a local Node-capable image (CI uses `abb:test`). The packaged launcher test runs inside the built image: mount `test/` at `/app/test` and run `node --test test/managed-proxy.integration.js` with the normal unprivileged user.

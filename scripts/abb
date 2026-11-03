@@ -11,8 +11,9 @@ project="abb-$(id -u)-$name"
 command=${1:-help}
 shift || true
 compose() {
-  local files=(-f "$state/compose.yaml")
+  local files=(-f "${compose_base:-$state/compose.yaml}")
   [[ ! -f "$state/override.yaml" ]] || files+=(-f "$state/override.yaml")
+  [[ ! -f "$state/proxy.yaml" ]] || files+=(-f "$state/proxy.yaml")
   docker compose --project-name "$project" --env-file "$state/.env" "${files[@]}" "$@"
 }
 need_workspace() { [[ -f "$state/.env" && -f "$state/compose.yaml" ]] || { echo 'Run abb init first.' >&2; exit 1; }; }
@@ -45,6 +46,14 @@ ensure_image() (
   docker image load -i "$download/$archive"
   docker image inspect "$image" >/dev/null
 )
+require_proxy_support() {
+  local server support
+  server=$(compose_base="${2:-$state/compose.yaml}" compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["workspace"].get("environment",{}).get("ABB_PROXY_SERVER", "") or "")')
+  if [[ -n "$server" ]]; then
+    support=$(docker image inspect --format '{{ index .Config.Labels "io.argon.abb.proxy" }}' "$1")
+    [[ "$support" == 1 ]] || { echo 'This browser image does not support proxies. Build or install a release with proxy support before starting this workspace.' >&2; return 1; }
+  fi
+}
 wait_healthy() {
   local cid health
   cid=$(compose ps -q workspace)
@@ -81,12 +90,43 @@ case "$command" in
     printf 'ABB_PORT=%s\nABB_IMAGE=argon/agentic-browser-bridge:%s\nABB_VIEWER_PASSWORD_HASH=%s\n' "$port" "$version" "$password_hash" > "$state/.env"
     echo "Workspace initialized at $state. No services started. Run abb up."
     ;;
+  proxy)
+    need_workspace
+    action=${1:-status}; shift || true
+    case "$action" in
+      status)
+        [[ $# == 0 ]] || { echo 'Usage: abb proxy status' >&2; exit 2; }
+        if [[ -f "$state/proxy.yaml" ]]; then cat "$state/proxy.yaml"; else echo 'No CLI proxy configuration. Workspace environment/override may still configure one.'; fi
+        ;;
+      off)
+        [[ $# == 0 ]] || { echo 'Usage: abb proxy off' >&2; exit 2; }
+        rm -f -- "$state/proxy.yaml"
+        echo 'CLI proxy removed. Run abb up to apply; connector state is retained.'
+        ;;
+      set|tailscale)
+        command -v python3 >/dev/null || { echo 'Python 3 is required.' >&2; exit 1; }
+        if [[ "$action" == tailscale ]]; then
+          [[ $# == 1 && "$1" =~ ^[a-z][a-z0-9-]{0,31}$ ]] || { echo 'Usage: abb proxy tailscale CONNECTOR_NAME' >&2; exit 2; }
+          server=http://tailscale-proxy:1055; bypass=''; network="tsproxy-$(id -u)-$1_proxy"
+        else
+          [[ $# == 1 || $# == 2 ]] || { echo 'Usage: abb proxy set URL [BYPASS_RULES]' >&2; exit 2; }
+          server=$1; bypass=${2:-}; network=''
+        fi
+        python3 "$app_dir/scripts/proxy-config.py" "$state/proxy.yaml" "$server" "$bypass" "$network"
+        echo 'Proxy configured. Run abb up to apply (browser restarts; profile is preserved).'
+        ;;
+      *) echo 'Usage: abb proxy {set URL [BYPASS_RULES]|tailscale CONNECTOR_NAME|status|off}' >&2; exit 2 ;;
+    esac
+    ;;
   up)
     need_workspace
     keep_running=false
     if [[ "${1:-}" == --no-idle-shutdown ]]; then keep_running=true; shift; fi
     [[ $# == 0 ]] || { echo 'Usage: abb up [--no-idle-shutdown]' >&2; exit 2; }
-    check_runtime; ensure_image "$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")"; compose up -d; wait_healthy
+    check_runtime
+    image=$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")
+    ensure_image "$image"; require_proxy_support "$image"
+    compose up -d; wait_healthy
     if "$keep_running"; then
       compose exec -T --user node workspace node --input-type=module -e 'import http from "node:http"; const r=http.request({socketPath:"/tmp/abb/control.sock",path:"/policy",method:"POST",headers:{"Content-Type":"application/json"}},s=>{s.resume();s.on("end",()=>{if(s.statusCode!==200)process.exitCode=1;});});r.on("error",()=>process.exit(1));r.end(JSON.stringify({enabled:false}));' </dev/null
     fi
@@ -98,7 +138,7 @@ case "$command" in
   mcp)
     need_workspace
     # No -t: stdout is reserved for MCP JSON-RPC. Container owner and UID are fixed.
-    exec docker compose --project-name "$project" --env-file "$state/.env" -f "$state/compose.yaml" exec -T --user node workspace node /app/src/mcp.js
+    compose exec -T --user node workspace node /app/src/mcp.js
     ;;
   update)
     need_workspace; check_runtime
@@ -107,6 +147,7 @@ case "$command" in
     old_image=$(sed -n 's/^ABB_IMAGE=//p' "$state/.env")
     new_image="argon/agentic-browser-bridge:$target"
     ensure_image "$new_image"
+    require_proxy_support "$new_image" "$app_dir/compose.yaml"
     cp "$state/.env" "$state/.env.previous"
     cp "$state/compose.yaml" "$state/compose.yaml.previous"
     cp "$app_dir/compose.yaml" "$state/compose.yaml"
@@ -116,7 +157,12 @@ case "$command" in
     else
       cp "$state/.env.previous" "$state/.env"
       cp "$state/compose.yaml.previous" "$state/compose.yaml"
-      compose up -d --force-recreate
+      if require_proxy_support "$old_image"; then
+        compose up -d --force-recreate
+      else
+        compose stop workspace
+        echo 'Previous image lacks proxy support; workspace remains stopped to prevent direct traffic. Restore a compatible image or explicitly remove proxy settings.' >&2
+      fi
       echo 'Update failed; previous image configuration restored. Check abb status/logs. Profile was not rolled back.' >&2
       exit 1
     fi
@@ -132,7 +178,7 @@ case "$command" in
   version) printf '%s\n' "$version" ;;
   help|--help|-h)
     echo 'Agentic Browser Bridge — per-user persistent browser workspace'
-    echo 'Usage: abb {init [PORT]|up [--no-idle-shutdown]|stop|down|status|logs|mcp|update VERSION|backup FILE|version}'
+    echo 'Usage: abb {init [PORT]|up [--no-idle-shutdown]|stop|down|status|logs|mcp|update VERSION|backup FILE|proxy {set|tailscale|status|off}|version}'
     echo 'Select another workspace with ABB_WORKSPACE=name. Each Linux user needs their own rootless Docker daemon.'
     ;;
   *) echo 'Unknown command. Run abb help.' >&2; exit 2 ;;

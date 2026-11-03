@@ -1,5 +1,6 @@
 FROM node:24-bookworm-slim
-LABEL org.opencontainers.image.source="https://github.com/ArgonTechSolutions/agentic-browser-bridge" \
+LABEL io.argon.abb.proxy="1" \
+      org.opencontainers.image.source="https://github.com/ArgonTechSolutions/agentic-browser-bridge" \
       org.opencontainers.image.title="Agentic Browser Bridge" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apt-get update && apt-get install -y --no-install-recommends \
