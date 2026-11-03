@@ -155,6 +155,17 @@ esac
     assert.equal(await readFile(config, 'utf8'), attached);
     assert.notEqual(spawnSync(cli, ['update', '0.1.0-alpha.5'], {env: {...env, ABB_TEST_FAIL: '1'}}).status, 0);
     assert.equal(await readFile(config, 'utf8'), attached);
+    // The target supports proxies but the previous image does not. Rollback must
+    // stop instead of launching an old image that silently ignores the proxy.
+    const mock = path.join(dir, 'bin/docker');
+    await writeFile(mock, (await readFile(mock, 'utf8')).replace('if [[ "\${ABB_OLD_IMAGE:-}" != 1 ]]', 'if [[ "\${ABB_OLD_IMAGE:-}" != 1 && "$*" != *"0.1.0-alpha.4" ]]'));
+    await writeFile(env.ABB_TEST_LOG, '');
+    const rollback = spawnSync(cli, ['update', '0.1.0-alpha.5'], {env: {...env, ABB_TEST_FAIL: '1'}, encoding: 'utf8'});
+    assert.notEqual(rollback.status, 0);
+    assert.match(rollback.stderr, /remains stopped/);
+    const rollbackLog = await readFile(env.ABB_TEST_LOG, 'utf8');
+    assert.equal((rollbackLog.match(/up -d --force-recreate/g) || []).length, 1);
+    assert.match(rollbackLog, /stop workspace/);
     execFileSync(cli, ['mcp'], {env});
     assert.match(await readFile(env.ABB_TEST_LOG, 'utf8'), /proxy.yaml.*exec -T --user node workspace node \/app\/src\/mcp.js/);
     execFileSync(cli, ['proxy', 'off'], {env});

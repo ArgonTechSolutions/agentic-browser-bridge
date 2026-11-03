@@ -157,7 +157,12 @@ case "$command" in
     else
       cp "$state/.env.previous" "$state/.env"
       cp "$state/compose.yaml.previous" "$state/compose.yaml"
-      compose up -d --force-recreate
+      if require_proxy_support "$old_image"; then
+        compose up -d --force-recreate
+      else
+        compose stop workspace
+        echo 'Previous image lacks proxy support; workspace remains stopped to prevent direct traffic. Restore a compatible image or explicitly remove proxy settings.' >&2
+      fi
       echo 'Update failed; previous image configuration restored. Check abb status/logs. Profile was not rolled back.' >&2
       exit 1
     fi

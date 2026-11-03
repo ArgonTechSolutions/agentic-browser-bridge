@@ -62,7 +62,9 @@ Equivalent deployment environment variables are `ABB_PROXY_SERVER` and optional
 in `proxy.yaml` take precedence. Updates and automatic image rollback preserve
 this file. Applying the feature requires a newly built/released browser image
 containing proxy support; the CLI refuses to start a configured proxy workspace
-with an older image that lacks the proxy capability label.
+with an older image that lacks the proxy capability label. If a failed update
+would roll back to such an image, the workspace remains stopped rather than
+starting it with ignored proxy settings.
 
 By default, HTTP(S) and WebSocket page requests use the proxy, including ordinary
 websites. That routes public requests through the connector too; it does not
