@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:26-bookworm-slim
 LABEL io.argon.abb.proxy="1" \
       org.opencontainers.image.source="https://github.com/ArgonTechSolutions/agentic-browser-bridge" \
       org.opencontainers.image.title="Agentic Browser Bridge" \
