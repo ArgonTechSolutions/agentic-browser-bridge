@@ -8,7 +8,7 @@ hash=$(node --input-type=module -e "import {scryptSync} from 'node:crypto'; cons
 docker run -d --name abb-smoke --cap-drop ALL --security-opt no-new-privileges:true \
   --memory 1536m --pids-limit 256 --shm-size 256m \
   --tmpfs /tmp:rw,nosuid,nodev,size=256m,mode=1777 \
-  -p 127.0.0.1:17080:8080 -e ABB_VIEWER_PASSWORD_HASH="$hash" "$image"
+  -p 127.0.0.1:17080:8080 -e ABB_VIEWER_PASSWORD_HASH="$hash" -e ABB_IDLE_MINUTES=0.05 -e ABB_IDLE_GRACE_SECONDS=1 "$image"
 ready=false
 for _ in {1..90}; do
   state=$(docker inspect --format '{{.State.Health.Status}}' abb-smoke)

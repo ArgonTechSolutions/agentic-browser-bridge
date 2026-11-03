@@ -50,12 +50,19 @@ test('viewer rejects DNS rebinding, cross-origin control, and cross-site fetches
 
 test('viewer authentication rejects missing and incorrect credentials', async () => {
   const {scryptSync} = await import('node:crypto');
-  const {authenticated, checkHash} = await import('../src/auth.js');
+  const {Sessions, checkHash} = await import('../src/auth.js');
   const hash = '00'.repeat(16) + ':' + scryptSync('fixture-password', Buffer.alloc(16), 64).toString('hex');
-  const req = value => ({headers: {authorization: 'Basic ' + Buffer.from(value).toString('base64')}});
+  const sessions = new Sessions(hash);
+  const req = token => ({headers: {cookie: `${sessions.name}=${token}`}});
   assert.throws(() => checkHash(''));
-  assert.equal(authenticated({headers: {}}, hash), false);
-  assert.equal(authenticated(req('operator:wrong'), hash), false);
-  assert.equal(authenticated(req('other:fixture-password'), hash), false);
-  assert.equal(authenticated(req('operator:fixture-password'), hash), true);
+  assert.equal(sessions.authenticated({headers: {}}), false);
+  assert.equal(sessions.login('wrong'), undefined);
+  assert.equal(sessions.authenticated(req('unknown')), false);
+  assert.equal(sessions.authenticated(req(sessions.login('fixture-password'))), true);
+});
+
+test('agent workflow and pending human handoff remain protected until explicit completion', async()=>{
+ const {BrowserTools}=await import('../src/browser.js');const control=new Control();const browser=new BrowserTools(control);
+ control.returnToAgent();await browser.call('browser_request_human',{reason:'Waiting on approval'});assert.equal(control.waitingForHuman,true);
+ await browser.call('browser_release',{});assert.equal(control.waitingForHuman,false);assert.equal(control.mode,'human');
 });

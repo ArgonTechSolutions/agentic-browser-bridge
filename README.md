@@ -2,9 +2,9 @@
 
 **A shared browser workspace for AI agents and people. An [Argon](https://github.com/ArgonTechSolutions) tool.**
 
-Run a persistent Chromium browser on your Linux server. Let Codex or another MCP client follow web workflows. Open the same browser remotely when you want to watch, sign in, or take over. Disconnect your computer while the workspace keeps running.
+Run a persistent Chromium browser on your Linux server. Let Codex or another MCP client follow web workflows. Open the same browser remotely when you want to watch, sign in, or take over. Disconnect your computer while an active agent workflow keeps running; released workspaces can sleep to save RAM.
 
-**Status: 0.1.0-alpha.2.** Single-user workspaces; Linux x86_64 container target. A separate workspace and rootless Docker runtime are required for each Linux user. This is a browser bridge, not a new browser engine or a replacement for a full desktop automation platform.
+**Status: 0.1.0-alpha.3.** Single-user workspaces; Linux x86_64 container target. A separate workspace and rootless Docker runtime are required for each Linux user. This is a browser bridge, not a new browser engine or a replacement for a full desktop automation platform.
 
 ```text
 Codex / MCP client ── stdio ── abb mcp ── private Unix socket ─┐
@@ -29,7 +29,7 @@ Prerequisites: Linux x86_64 server, **your own rootless Docker daemon**, Docker 
 Download the release bundle and checksum file from [GitHub Releases](https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases). For example:
 
 ```bash
-VERSION=0.1.0-alpha.2
+VERSION=0.1.0-alpha.3
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/agentic-browser-bridge-${VERSION}.tar.gz"
 curl -fLO "https://github.com/ArgonTechSolutions/agentic-browser-bridge/releases/download/v${VERSION}/SHA256SUMS"
 sha256sum --ignore-missing --check SHA256SUMS
@@ -53,7 +53,7 @@ From your computer:
 ssh -N -L 17080:127.0.0.1:17080 your-server-alias
 ```
 
-Open **http://127.0.0.1:17080** in your local browser. Sign in to the viewer as `operator` with the password you chose, then authenticate to websites inside this remote browser. Turn on the **Agent control** switch when ready to hand over; turn it off to take control before entering credentials or intervening. You can close the viewer without stopping the server browser.
+Open **http://127.0.0.1:17080** in your local browser. Sign in with the workspace password you chose, then authenticate to websites inside this remote browser. Turn on the **Agent control** switch when ready to hand over; turn it off to take control before entering credentials or intervening. A connected viewer keeps the browser awake. After workflow release and viewer disconnection, idle shutdown can stop the browser while preserving its profile.
 
 SSH authenticates network access; the viewer also requires its per-workspace password, including on loopback. If you use Tailscale, the SSH host can be reachable through your tailnet; no inbound connection to your personal computer is needed. For a direct private HTTPS viewer, see [Private access](docs/private-access.md). Do not expose the viewer publicly or remove its loopback binding without application authentication.
 
@@ -75,7 +75,7 @@ command = "ssh"
 args = ["-T", "your-server-alias", "/home/YOUR_USER/.local/bin/abb", "mcp"]
 ```
 
-The SSH shell must not print banners to stdout. Reconnect/restart the client after adding MCP configuration. The server's browser keeps running when an MCP client disconnects. The configured Linux user must own the Docker context and workspace. A client with that user's shell access already has authority over their profile; the takeover gate coordinates agent tools, not hostile same-user processes.
+The SSH shell must not print banners to stdout. Reconnect/restart the client after adding MCP configuration. An agent-owned workflow remains awake across MCP disconnection until explicitly released; see [idle shutdown](docs/idle-shutdown.md). The configured Linux user must own the Docker context and workspace. A client with that user's shell access already has authority over their profile; the takeover gate coordinates agent tools, not hostile same-user processes.
 
 Example instruction:
 
@@ -103,7 +103,7 @@ abb logs                       # bounded recent logs
 abb stop                       # stops the browser; profile retained
 abb backup ./browser-private.tar.gz  # requires stopped workspace
 abb up
-abb update 0.1.0-alpha.2        # explicit image version; restart, profile retained
+abb update 0.1.0-alpha.3        # explicit image version; restart, profile retained
 abb down                       # removes container/network; profile retained
 ```
 
@@ -120,3 +120,7 @@ The container uses Chromium without its process sandbox; rootless container isol
 See [Development](docs/development.md) for checks and container smoke tests. Report bugs through [GitHub Issues](https://github.com/ArgonTechSolutions/agentic-browser-bridge/issues). Use private reporting for vulnerabilities. Contributions are licensed under Apache-2.0. Do not include profiles, cookies, credentials, private URLs or screenshots of real accounts in issues or tests.
 
 [Changelog](CHANGELOG.md) · [License](LICENSE)
+
+## Idle shutdown and phone access
+
+The **Idle shutdown** switch is at the top left. It defaults to 30 minutes, followed by a 2-minute grace period, and only runs when there is no connected viewer, active agent workflow, pending human handoff, operation or download. `browser_release` completes a workflow and permits sleep; status polling is not activity. Use `abb up --no-idle-shutdown` or turn the switch off to keep running. The next viewer sign-in reminds you of that choice. A lightweight login/wake controller remains available while Chromium and its display sleep. See [idle semantics](docs/idle-shutdown.md) and [private HTTPS access](docs/private-access.md).
