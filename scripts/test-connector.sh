@@ -26,7 +26,7 @@ done
 # Probe both protocol handshakes over the connector's private Docker network.
 # This disposable client needs Node only; no credentials or device enrollment.
 network="${project}_proxy"
-docker run --rm --network "$network" --entrypoint node "${ABB_CONNECTOR_TEST_IMAGE:-argon/agentic-browser-bridge:0.1.0-alpha.3}" --input-type=module -e '
+docker run --rm --network "$network" --entrypoint node "${ABB_CONNECTOR_TEST_IMAGE:-argon/agentic-browser-bridge:0.1.0-alpha.4}" --input-type=module -e '
 import net from "node:net";
 import http from "node:http";
 await new Promise((resolve,reject) => {

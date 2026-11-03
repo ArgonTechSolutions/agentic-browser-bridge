@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+- Add optional provider-independent HTTP/HTTPS/SOCKS5 page proxies, explicit bypass rules and failure without direct fallback.
+- Add the reusable Argon-maintained Tailscale adapter: official userspace container, private HTTP CONNECT/SOCKS5 endpoints, explicit user login and persistent isolated state.
+- Add proxy configuration/lifecycle commands and refuse incompatible browser images before startup.
+- Preserve connector configuration across browser updates; retain existing viewer/MCP access and browser profiles.
+- Validate proxy DNS, HTTPS/WebSockets, packaged launcher behavior and the unenrolled adapter in CI.
+
 ## 0.1.0-alpha.3
 
 - Add conservative idle sleep/wake, persisted keep-running preference and top-left idle switch with sign-in reminder.

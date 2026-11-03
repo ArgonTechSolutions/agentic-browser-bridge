@@ -1,6 +1,6 @@
-# Tailscale proxy connector
+# Tailscale proxy adapter
 
-A standalone userspace Tailscale client with HTTP CONNECT and SOCKS5 endpoints.
+An Argon-maintained, standalone userspace Tailscale adapter using the official client with HTTP CONNECT and SOCKS5 endpoints.
 It has no dependency on Browser Bridge. Any trusted container attached to its
 Docker network can use it. No proxy port is published on the host or tailnet.
 
