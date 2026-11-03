@@ -1,7 +1,11 @@
-A simpler viewer, styled after Argon’s current website. The normal toolbar shows only who has control and one accessible switch. Product title, footer and permanent explanation/reconnect rows are removed. Connection recovery controls appear only when needed. Manrope is self-hosted with its OFL license; dark surfaces and violet accents follow Argon’s palette.
+Password-only viewer login, conservative idle shutdown and ATS-8 backup fix.
 
-The switch supports keyboard operation and preserves the human takeover/drain behavior. Ownership polling handles slow connections without leaving controls stuck, disables stale controls on failed status checks, and ignores late events from replaced screen connections.
+Idle shutdown is enabled by default after 30 idle minutes plus a 2-minute grace period. Connected viewers (even without input), agent ownership, pending human handoff, active operations and monitored downloads block shutdown. An agent must call `browser_release` when finished. Unattended waits cannot be inferred from a quiet page: keep the workflow owned or disable idle shutdown. The top-left toggle and `abb up --no-idle-shutdown` persist the preference; the next viewer login reminds you when keep-running is enabled.
 
-Existing MCP configuration, profiles and downloads remain compatible. Use `abb update 0.1.0-alpha.2`; updating recreates/restarts the workspace and resets ownership to human. Take a consistent private backup before updating. No bootstrap/client configuration changes are required.
+The lightweight controller remains available during browser sleep. Explicit wake restores Chromium from the persistent profile and starts in human control. Cookies/site storage survive; unsaved forms and page JavaScript are not guaranteed to survive sleep. Unexpected browser/display failure restarts the workspace.
 
-Linux x86_64 alpha. The published image archive is checksum-verified by the CLI; no registry account is required. Existing website-automation and container-security limitations remain documented in SECURITY.md and the operations guide.
+Sign in using the existing workspace password, with no username. Existing salted hashes remain valid. Sessions expire after 8 hours or restart. Private hostnames automatically receive Secure cookies; loopback SSH access remains supported. HTTPS ingress must support authenticated WebSockets.
+
+Install the matching CLI release, stop and back up the workspace, then use `abb update 0.1.0-alpha.3`. Upgrades migrate the Compose packaging while preserving private configuration and profile volumes. MCP now exposes 13 tools; restart/reconnect clients to discover `browser_release`. No client route changes are needed.
+
+The portable project does not provision any specific host's ingress, Tailscale policy or DNS. The separately maintained private gateway integration has its own validation and deployment record.

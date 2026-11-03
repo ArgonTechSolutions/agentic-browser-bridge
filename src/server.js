@@ -5,7 +5,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {WebSocket, WebSocketServer} from 'ws';
 import {Control} from './control.js';
-import {authenticated, checkHash} from './auth.js';
+import {Sessions, checkHash} from './auth.js';
+import {Lifecycle} from './lifecycle.js';
+import {Runtime} from './runtime.js';
 import {BrowserTools} from './browser.js';
 
 const webRoot = fileURLToPath(new URL('../web/', import.meta.url));
@@ -30,25 +32,75 @@ export function allowedRequest(req, hosts) {
   return true;
 }
 
-export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb/control.sock', endpoint, novncRoot = '/opt/novnc', vncPort = 5900, hosts = ['localhost', '127.0.0.1', '[::1]'], passwordHash = process.env.ABB_VIEWER_PASSWORD_HASH} = {}) {
+export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb/control.sock', endpoint, novncRoot = '/opt/novnc', vncPort = 5900, hosts = ['localhost', '127.0.0.1', '[::1]'], passwordHash = process.env.ABB_VIEWER_PASSWORD_HASH, managed = false, idleMs = 1800000, warningMs = 120000, policyFile, secureCookies = false, runtime: suppliedRuntime} = {}) {
   checkHash(passwordHash);
   const control = new Control();
   const browser = new BrowserTools(control, endpoint);
+  const sessions = new Sessions(passwordHash, {secure: secureCookies});
+  const sockets = new Set();
+  const runtime = suppliedRuntime || (managed ? new Runtime() : undefined);
+  const lifecycle = new Lifecycle({idleMs, warningMs, policyFile,
+    start: async () => { await control.takeHuman('Browser awakened. Return control to enable agent access.'); await runtime?.start(); },
+    stop: async () => { await control.takeHuman('Browser sleeping. Wake it in the viewer.'); await browser.disconnect(); await runtime?.stop(); },
+    blockers: () => [...(control.mode === 'agent' ? ['agent workflow'] : []), ...(control.waitingForHuman ? ['waiting for human'] : []), ...(control.active ? ['agent operation'] : []), ...(sockets.size ? ['connected viewer'] : []), ...(runtime?.blockers() || [])]
+  });
+  if (runtime) runtime.onFailure = () => {
+    lifecycle.phase = 'error';
+    console.error('Browser supervisor failed unexpectedly; restarting workspace.');
+    if (managed) process.kill(process.pid, 'SIGTERM');
+  };
+  await lifecycle.load();
+  await lifecycle.wake();
+  control.beforeOperation = () => {
+    if (lifecycle.phase !== 'running') throw Error('Browser sleeping or starting. Ask the human to wake it in the viewer.');
+    lifecycle.activity();
+  };
+  control.afterOperation = () => lifecycle.activity();
+  const status = () => ({...control.status(), ...lifecycle.status()});
+  const mutation = req => { if (req.headers['x-abb-control'] !== '1') throw Error('Control header required.'); };
+
   const viewer = http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     res.setHeader('Referrer-Policy', 'no-referrer');
     if (!allowedRequest(req, hosts)) { text(res, 403, {error: 'Host or Origin rejected.'}); return; }
-    if (!authenticated(req, passwordHash)) { res.setHeader('WWW-Authenticate', 'Basic realm="Agentic Browser Bridge", charset="UTF-8"'); text(res, 401, {error: 'Viewer authentication required.'}); return; }
     try {
-      const pathname = new URL(req.url, 'http://localhost').pathname;
-      if (pathname === '/api/status' && req.method === 'GET') { text(res, 200, control.status()); return; }
+      let pathname = new URL(req.url, 'http://localhost').pathname;
+      if (pathname === '/api/login' && req.method === 'POST') {
+        mutation(req);
+        const {password} = await json(req);
+        const token = sessions.login(password);
+        if (!token) { text(res, 401, {error: 'Sign-in failed. Check your password or wait a minute before retrying.'}); return; }
+        res.setHeader('Set-Cookie', sessions.cookie(token, req)); text(res, 200, {ok: true}); return;
+      }
+      if (!sessions.authenticated(req)) {
+        if (pathname === '/') pathname = '/login.html';
+        else if (!['/login.html', '/login.js', '/style.css', '/fonts/manrope-latin-wght-normal.woff2'].includes(pathname)) {
+          text(res, 401, {error: 'Sign in to the viewer.'}); return;
+        }
+      } else {
+        if (pathname === '/api/logout' && req.method === 'POST') {
+          mutation(req); sessions.logout(req); res.setHeader('Set-Cookie', sessions.cookie('', req)); text(res, 200, {ok: true}); return;
+        }
+        if (pathname === '/api/idle' && req.method === 'POST') {
+          mutation(req); const {enabled} = await json(req); await lifecycle.setEnabled(enabled); text(res, 200, status()); return;
+        }
+        if (pathname === '/api/wake' && req.method === 'POST') {
+          mutation(req); await lifecycle.wake(); text(res, 200, status()); return;
+        }
+        if (pathname === '/api/activity' && req.method === 'POST') {
+          mutation(req); lifecycle.activity(); text(res, 200, status()); return;
+        }
+      }
+      if (pathname === '/api/status' && req.method === 'GET') { text(res, 200, status()); return; }
       if (pathname === '/api/control' && req.method === 'POST') {
         // An extra header prevents form posts; Origin/Fetch Metadata prevent cross-origin browser requests.
         if (req.headers['x-abb-control'] !== '1') throw new Error('Control header required.');
         const {mode} = await json(req);
         if (!['human', 'agent'].includes(mode)) throw new Error('Invalid mode.');
-        text(res, 200, mode === 'human' ? await control.takeHuman() : control.returnToAgent()); return;
+        if (mode === 'agent' && lifecycle.phase !== 'running') throw Error('Wake the browser first.');
+        if (mode === 'human') await control.takeHuman(); else control.returnToAgent();
+        lifecycle.activity(); text(res, 200, status()); return;
       }
       if (!['GET', 'HEAD'].includes(req.method)) { text(res, 405, {error: 'Method not allowed.'}); return; }
       const base = pathname.startsWith('/novnc/') ? novncRoot : webRoot;
@@ -62,12 +114,13 @@ export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb
       res.end(req.method === 'HEAD' ? undefined : body);
     } catch (e) { fail(res, e); }
   });
-  const sockets = new Set();
   const wss = new WebSocketServer({noServer: true, maxPayload: 4 * 1024 * 1024});
   viewer.on('upgrade', (req, socket, head) => {
-    if (req.url !== '/websockify' || !req.headers.origin || !allowedRequest(req, hosts) || !authenticated(req, passwordHash)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
+    if (req.url !== '/websockify' || !req.headers.origin || !allowedRequest(req, hosts) || !sessions.authenticated(req)) { socket.end('HTTP/1.1 403 Forbidden\r\n\r\n'); return; }
+    if (lifecycle.phase !== 'running') { socket.end('HTTP/1.1 409 Conflict\r\n\r\n'); return; }
     wss.handleUpgrade(req, socket, head, client => {
-      sockets.add(client);
+      client.sessionToken = sessions.token(req);
+      sockets.add(client); control.waitingForHuman = false; lifecycle.activity();
       // Raw TCP cannot be reached as a WebSocket by arbitrary pages in Chromium.
       // Only this authenticated/Origin-checked endpoint exposes a web transport.
       const upstream = net.createConnection({host: '127.0.0.1', port: vncPort});
@@ -90,7 +143,7 @@ export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb
       upstream.on('error', () => client.close());
       upstream.on('close', () => client.close());
       client.on('error', () => upstream.destroy());
-      client.on('close', () => { sockets.delete(client); upstream.destroy(); });
+      client.on('close', () => { sockets.delete(client); lifecycle.activity(); upstream.destroy(); });
     });
   });
   // No network MCP listener: only same-UID local processes can access this socket.
@@ -98,24 +151,44 @@ export async function start({port = 8080, host = '127.0.0.1', socket = '/tmp/abb
   await chmod(path.dirname(socket), 0o700);
   // Refuse stale sockets: supervisor owns the socket directory; entrypoint removes it on a fresh start.
   const internal = http.createServer(async (req, res) => {
+    if (req.method === 'POST' && req.url === '/policy') {
+      try { const {enabled} = await json(req); text(res, 200, await lifecycle.setEnabled(enabled)); } catch (e) { fail(res, e); }
+      return;
+    }
     if (req.method !== 'POST' || req.url !== '/tool') { text(res, 404, {error: 'Not found.'}); return; }
-    try { const {name, args} = await json(req); text(res, 200, await browser.call(name, args)); }
+    try {
+      const {name, args} = await json(req);
+      if (name === 'browser_status') { text(res, 200, {content: [{type: 'text', text: JSON.stringify(status())}]}); return; }
+      text(res, 200, await browser.call(name, args));
+    }
     catch (e) { text(res, 200, {isError: true, content: [{type: 'text', text: e.message}]}); }
   });
   await new Promise((resolve, reject) => { internal.once('error', reject); internal.listen(socket, resolve); });
   await chmod(socket, 0o600);
   await new Promise((resolve, reject) => { viewer.once('error', reject); viewer.listen(port, host, resolve); });
-  return {control, browser, viewer, socket, close: async () => {
+  let ticking = false;
+  const timer = setInterval(async () => {
+    sessions.prune();
+    for (const client of sockets) if (!sessions.valid(client.sessionToken)) client.terminate();
+    if (ticking) return;
+    ticking = true;
+    try { await lifecycle.tick(); } catch { console.error('Browser lifecycle transition failed.'); }
+    finally { ticking = false; }
+  }, 1000);
+  timer.unref();
+  return {control, browser, lifecycle, sessions, viewer, socket, close: async () => {
+    clearInterval(timer);
     for (const ws of sockets) ws.terminate();
     await new Promise(resolve => wss.close(resolve));
     await Promise.all([new Promise(resolve => viewer.close(resolve)), new Promise(resolve => internal.close(resolve))]);
     await browser.disconnect();
+    await runtime?.stop();
     await unlink(socket).catch(() => {});
   }};
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const app = await start({host: process.env.ABB_LISTEN || '127.0.0.1', socket: process.env.ABB_SOCKET, hosts: (process.env.ABB_ALLOWED_HOSTS || 'localhost,127.0.0.1,[::1]').split(',')});
+  const app = await start({managed: process.env.ABB_MANAGED_BROWSER === '1', warningMs: Number(process.env.ABB_IDLE_GRACE_SECONDS || 120) * 1000, policyFile: process.env.ABB_MANAGED_BROWSER === '1' ? '/data/idle-policy.json' : undefined, idleMs: Number(process.env.ABB_IDLE_MINUTES || 30) * 60000, secureCookies: process.env.ABB_SECURE_COOKIES === '1', host: process.env.ABB_LISTEN || '127.0.0.1', socket: process.env.ABB_SOCKET, hosts: (process.env.ABB_ALLOWED_HOSTS || 'localhost,127.0.0.1,[::1]').split(',')});
   console.error('Agentic Browser Bridge viewer ready; control starts with human.');
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { app.close().then(() => process.exit(0)); });
 }

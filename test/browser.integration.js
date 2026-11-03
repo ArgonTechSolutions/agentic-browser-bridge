@@ -24,8 +24,8 @@ test('MCP flow → human handoff → same-tab resume → persistent profile', {t
   try {
     context = await chromium.launchPersistentContext(path.join(dir, 'profile'), {executablePath, headless: true, args: ['--no-sandbox', '--remote-debugging-port=19222']});
     const passwordHash = '00'.repeat(16) + ':' + scryptSync('fixture-password', Buffer.alloc(16), 64).toString('hex');
-    const authorization = 'Basic ' + Buffer.from('operator:fixture-password').toString('base64');
     app = await start({passwordHash, port: 0, socket: path.join(dir, 'control.sock'), endpoint: 'http://127.0.0.1:19222'});
+    const cookie = `${app.sessions.name}=${app.sessions.login('fixture-password')}`;
     client = new Client({name: 'integration', version: '1.0.0'});
     await client.connect(new StdioClientTransport({command: process.execPath, args: ['src/mcp.js'], env: {...process.env, ABB_SOCKET: app.socket}}));
     const call = (name, args = {}) => client.callTool({name, arguments: args});
@@ -33,7 +33,7 @@ test('MCP flow → human handoff → same-tab resume → persistent profile', {t
     assert.equal((await call('browser_tabs')).isError, true);
     const viewerURL = `http://127.0.0.1:${app.viewer.address().port}`;
     assert.equal((await fetch(viewerURL + '/api/status')).status, 401);
-    const control = mode => fetch(viewerURL + '/api/control', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-ABB-Control': '1', Authorization: authorization, Origin: viewerURL}, body: JSON.stringify({mode})});
+    const control = mode => fetch(viewerURL + '/api/control', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-ABB-Control': '1', Cookie: cookie, Origin: viewerURL}, body: JSON.stringify({mode})});
     assert.equal((await control('agent')).status, 200);
     const opened = await call('browser_open', {url});
     const {tab} = JSON.parse(opened.content[0].text);
@@ -52,7 +52,7 @@ test('MCP flow → human handoff → same-tab resume → persistent profile', {t
     // Disconnecting MCP leaves the browser alive, and reconnecting preserves the same tab.
     await client.close(); client = undefined;
     assert.equal(await page.locator('#result').textContent(), 'human');
-    const response = await fetch(viewerURL + '/api/control', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-ABB-Control': '1', Authorization: authorization, Origin: 'http://evil.test'}, body: '{"mode":"human"}'});
+    const response = await fetch(viewerURL + '/api/control', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-ABB-Control': '1', Cookie: cookie, Origin: 'http://evil.test'}, body: '{"mode":"human"}'});
     assert.equal(response.status, 403);
     await app.close(); app = undefined;
     await context.close();

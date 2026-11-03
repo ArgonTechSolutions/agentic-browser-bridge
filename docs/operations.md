@@ -48,3 +48,5 @@ Stop the workspace, derive a new hash using the same private terminal provisioni
 - Agent tool snapshots/screenshots may contain private account content. No audit transcript or screenshots are persisted by the bridge.
 - Downloaded files remain inside `/data/downloads`; file management/export is an operator task.
 - CLI installation is Linux-only; viewers and SSH MCP clients may run on other operating systems. ARM images are not yet validated.
+
+After CLI installation, `abb update` refreshes the workspace Compose file and retains both previous image configuration and packaging for health-failure rollback. Custom packaging edits should be reviewed before upgrading. Idle settings, login session behavior and profile limitations are documented in [idle shutdown](idle-shutdown.md).

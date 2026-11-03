@@ -9,16 +9,18 @@ const viewerURL = 'http://127.0.0.1:17080';
 const client = new Client({name: 'container-smoke', version: '1.0.0'});
 let browser;
 try {
-  assert.equal((await fetch(viewerURL)).status, 401);
+  assert.equal((await fetch(viewerURL + '/api/status')).status, 401);
   await client.connect(new StdioClientTransport({command: 'docker', args: ['exec', '-i', '--user', 'node', container, 'node', '/app/src/mcp.js']}));
   const call = (name, args = {}) => client.callTool({name, arguments: args});
   assert.equal((await call('browser_tabs')).isError, true);
   browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox']});
-  const context = await browser.newContext({httpCredentials: {username: 'operator', password: 'fixture-password'}, viewport: {width: 1600, height: 1100}});
+  const context = await browser.newContext({viewport: {width: 1600, height: 1100}});
   const viewer = await context.newPage();
   const pageErrors = [];
   viewer.on('pageerror', e => pageErrors.push(e.message));
   await viewer.goto(viewerURL);
+  await viewer.getByLabel('Workspace password').fill('fixture-password');
+  await viewer.getByRole('button', {name:'Sign in', exact:true}).click();
   await viewer.getByRole('switch', {name: 'Agent control'}).waitFor();
   await viewer.locator('#screen canvas').waitFor();
   await viewer.waitForFunction(() => document.querySelector('#screen canvas')?.width > 100);
@@ -45,6 +47,31 @@ try {
   assert.equal((await call('browser_screenshot', {tab})).content[0].type, 'image');
   await viewer.screenshot({path: '/tmp/abb-viewer-smoke.png'});
   assert.deepEqual(pageErrors, []);
-  await client.close(); await context.close();
-  console.log('PASS: authenticated viewer/WebSocket, actual noVNC keyboard takeover, same-tab MCP continuation, screenshot and client disconnect.');
+  // A viewer blocks idle shutdown even when it receives no input.
+  await viewer.waitForTimeout(5000);
+  const live = JSON.parse((await call('browser_status')).content[0].text);
+  assert.equal(live.phase, 'running'); assert.ok(live.blockers.includes('connected viewer'));
+  const cookies = await context.cookies();
+  const cookie = cookies.map(c=>`${c.name}=${c.value}`).join('; ');
+  await call('browser_release');
+  await context.close();
+  // Status polling and a persistent MCP client must not keep a browser awake.
+  let sleeping;
+  for (let n=0;n<20;n++) {
+    sleeping=JSON.parse((await call('browser_status')).content[0].text);
+    if (sleeping.phase==='sleeping') break;
+    await new Promise(r=>setTimeout(r,500));
+  }
+  assert.equal(sleeping.phase,'sleeping');
+  assert.equal((await call('browser_tabs')).isError,true);
+  const awakened=await fetch(viewerURL+'/api/wake',{method:'POST',headers:{'Content-Type':'application/json','X-ABB-Control':'1',Origin:viewerURL,Cookie:cookie},body:'{}'});
+  assert.equal(awakened.status,200);
+  const awake=await awakened.json(); assert.equal(awake.phase,'running');assert.equal(awake.mode,'human');
+  const resumed=await fetch(viewerURL+'/api/control',{method:'POST',headers:{'Content-Type':'application/json','X-ABB-Control':'1',Origin:viewerURL,Cookie:cookie},body:'{"mode":"agent"}'});
+  assert.equal(resumed.status,200);
+  const restored=await call('browser_tabs');assert.ok(!restored.isError,JSON.stringify(restored));
+  const restoredTabs=JSON.parse(restored.content[0].text);const fixtureTab=restoredTabs.find(t=>t.url==='http://127.0.0.1:18081/');assert.ok(fixtureTab,JSON.stringify(restoredTabs));
+  assert.ok(!(await call('browser_navigate',{tab:fixtureTab.tab,url:'http://127.0.0.1:18081/'})).isError);
+  await client.close();
+  console.log('PASS: authenticated viewer/WebSocket, actual noVNC keyboard takeover, same-tab MCP continuation, screenshot, viewer idle protection, actual sleep/wake and restored profile.');
 } finally { await client.close(); await browser?.close(); }

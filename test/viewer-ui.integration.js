@@ -21,13 +21,15 @@ test('single ownership switch handles keyboard, active handoff, recovery and res
   let browser, finish;
   try {
     browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox']});
-    const context = await browser.newContext({httpCredentials: {username: 'operator', password: 'fixture-password'}, viewport: {width: 1280, height: 800}});
+    const context = await browser.newContext({viewport: {width: 1280, height: 800}});
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/novnc/core/rfb.js', route => route.fulfill({contentType: 'text/javascript', body: screenTransport}));
     await page.goto(`http://127.0.0.1:${app.viewer.address().port}`);
-    await page.waitForFunction(() => document.getElementById('notice').hidden);
+    await page.getByLabel('Workspace password').fill('fixture-password');
+    await page.getByRole('button', {name:'Sign in', exact:true}).click();
+    await page.waitForFunction(() => document.getElementById('notice')?.hidden);
     await page.evaluate(() => document.fonts.ready);
     assert.ok(await page.evaluate(() => document.fonts.check('600 13px Manrope')));
     const toggle = page.getByRole('switch', {name: 'Agent control'});

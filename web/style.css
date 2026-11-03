@@ -28,7 +28,7 @@ button { font: inherit; }
 .toolbar {
   flex: 0 0 52px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   padding: 0 20px;
   background: #0b0911;
@@ -54,7 +54,7 @@ body[data-available="false"] .status-dot { background: #827d93; }
   font-weight: 600;
   letter-spacing: -.01em;
 }
-#control {
+.toggle {
   position: relative;
   width: 52px;
   height: 44px;
@@ -66,7 +66,7 @@ body[data-available="false"] .status-dot { background: #827d93; }
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-#control::before {
+.toggle::before {
   content: '';
   position: absolute;
   inset: 9px 2px;
@@ -86,15 +86,15 @@ body[data-available="false"] .status-dot { background: #827d93; }
   box-shadow: 0 1px 3px #0005;
   transition: transform 160ms;
 }
-#control[aria-checked="true"]::before {
+.toggle[aria-checked="true"]::before {
   background: var(--violet-bright);
   border-color: #aaa7f2;
   box-shadow: 0 0 14px #7c79d82b;
 }
-#control[aria-checked="true"] .switch-thumb { transform: translateX(22px); }
-#control:hover:not(:disabled)::before { border-color: #c3bff9; }
-#control:focus-visible { outline: 2px solid #aaa7f2; outline-offset: 2px; }
-#control:disabled { cursor: default; opacity: .5; }
+.toggle[aria-checked="true"] .switch-thumb { transform: translateX(22px); }
+.toggle:hover:not(:disabled)::before { border-color: #c3bff9; }
+.toggle:focus-visible { outline: 2px solid #aaa7f2; outline-offset: 2px; }
+.toggle:disabled { cursor: default; opacity: .5; }
 main { position: relative; flex: 1; min-height: 0; display: flex; }
 #screen { flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: #000; }
 .notice {
@@ -140,5 +140,17 @@ main { position: relative; flex: 1; min-height: 0; display: flex; }
   .notice { gap: 10px; padding: 10px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .status-dot, #control::before, .switch-thumb { transition: none; }
+  .status-dot, .toggle::before, .switch-thumb { transition: none; }
 }
+
+.idle-setting { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:600; }
+.login-page { justify-content:center; align-items:center; padding:24px; background:var(--night); }
+.login-card { width:100%; max-width:340px; display:grid; gap:16px; }
+.login-card h1 { font-size:26px; margin:0 0 12px; }
+.login-card input { width:100%; font:inherit; padding:12px; border:1px solid #77708f; border-radius:8px; background:#0b0911; color:#fff; }
+.login-card button, .reminder button, .sleep button { font:inherit; padding:10px 14px; border:1px solid #aaa7f2; border-radius:8px; background:var(--violet); color:#fff; cursor:pointer; min-height:44px; }
+.reminder { position:absolute; z-index:3; top:16px; left:50%; transform:translateX(-50%); background:var(--night); border:1px solid #7c79d8; border-radius:10px; padding:16px; width:calc(100% - 32px); max-width:420px; box-shadow:0 8px 30px #0008; }
+.reminder p { margin:0 0 12px; font-size:14px; }
+.reminder button { margin:3px; font-size:12px; }
+.sleep { position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000; }
+@media (max-width:360px) { .toolbar { padding-inline:6px; } .ownership { gap:5px; } #mode { font-size:11px; } .idle-setting { font-size:11px; gap:0; } .toggle { margin-left:0; } }

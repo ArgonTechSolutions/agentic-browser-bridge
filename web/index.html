@@ -9,10 +9,14 @@
 </head>
 <body>
   <header class="toolbar">
+    <div class="idle-setting">
+      <button id="idle" class="toggle" type="button" role="switch" aria-label="Idle shutdown" aria-checked="true" disabled><span class="switch-thumb" aria-hidden="true"></span></button>
+      <span>Idle shutdown</span>
+    </div>
     <div class="ownership">
       <span class="status-dot" aria-hidden="true"></span>
       <span id="mode" role="status" aria-live="polite">Connecting…</span>
-      <button id="control" type="button" role="switch" aria-label="Agent control" aria-checked="false" aria-describedby="control-help" disabled>
+      <button id="control" class="toggle" type="button" role="switch" aria-label="Agent control" aria-checked="false" aria-describedby="control-help" disabled>
         <span class="switch-thumb" aria-hidden="true"></span>
       </button>
       <span id="control-help" class="sr-only">Turn on to give the agent control. Turn off to take control yourself.</span>
@@ -23,6 +27,11 @@
       <span id="message"></span>
       <button id="reconnect" type="button" hidden>Reconnect</button>
     </div>
+    <div id="reminder" class="reminder" role="status" hidden>
+      <p>Your browser is set to keep running. Do you still need it?</p>
+      <button id="enable-idle" type="button">Enable idle shutdown</button><button id="keep-running" type="button">Keep running</button>
+    </div>
+    <div id="sleep" class="sleep" hidden><p id="sleep-message">Browser sleeping</p><button id="wake" type="button">Wake browser</button></div>
     <div id="screen" aria-label="Remote browser workspace"></div>
   </main>
   <script type="module" src="/app.js"></script>
