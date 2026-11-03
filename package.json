@@ -9,8 +9,9 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "test:ui": "node --test test/viewer-ui.integration.js",
+    "test:proxy": "node --test test/proxy.integration.js",
     "test:browser": "node --test test/browser.integration.js",
-    "check": "node --check src/lifecycle.js && node --check src/runtime.js && node --check web/login.js && node --check src/auth.js && node --check src/server.js && node --check src/browser.js && node --check src/mcp.js && node --check web/app.js && bash -n scripts/abb scripts/install.sh scripts/test-container.sh scripts/container-entrypoint.sh scripts/browser-process.sh"
+    "check": "node --check src/proxy.js && node --check src/lifecycle.js && node --check src/runtime.js && node --check web/login.js && node --check src/auth.js && node --check src/server.js && node --check src/browser.js && node --check src/mcp.js && node --check web/app.js && bash -n scripts/abb scripts/install.sh scripts/test-container.sh scripts/test-connector.sh scripts/container-entrypoint.sh scripts/browser-process.sh connectors/tailscale/tailscale-proxy"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

@@ -26,5 +26,7 @@ CHROMIUM_PATH=$(node --input-type=module -e "import {chromium} from 'playwright-
 export CHROMIUM_PATH
 npm run test:ui
 npm run test:browser
+npm run test:proxy
+docker run --rm --cap-drop ALL --security-opt no-new-privileges:true --shm-size 256m --tmpfs /tmp:rw,nosuid,nodev,size=256m,mode=1777 -v "$PWD/test:/app/test:ro" --entrypoint node "$image" --test test/managed-proxy.integration.js
 node test/container-smoke.js
 ABB_VIEWER_PASSWORD_HASH="$hash" docker compose config --quiet

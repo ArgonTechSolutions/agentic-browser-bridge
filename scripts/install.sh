@@ -13,14 +13,20 @@ if [[ -e "$bin/abb" || -L "$bin/abb" ]]; then
   current=$(readlink "$bin/abb" || true)
   [[ "$current" == "$root/releases/"*/scripts/abb ]] || { echo "Refusing to overwrite $bin/abb" >&2; exit 1; }
 fi
+if [[ -e "$bin/tailscale-proxy" || -L "$bin/tailscale-proxy" ]]; then
+  current=$(readlink "$bin/tailscale-proxy" || true)
+  [[ "$current" == "$root/releases/"*/connectors/tailscale/tailscale-proxy ]] || { echo "Refusing to overwrite $bin/tailscale-proxy" >&2; exit 1; }
+fi
 mkdir -p "$root/releases" "$bin"
 staging=$(mktemp -d "$root/releases/.install.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
-mkdir -p "$staging/scripts"
-cp "$source_dir/scripts/abb" "$staging/scripts/abb"
+mkdir -p "$staging/scripts" "$staging/connectors"
+cp "$source_dir/scripts/abb" "$source_dir/scripts/proxy-config.py" "$staging/scripts/"
+cp -R "$source_dir/connectors/tailscale" "$staging/connectors/"
 cp "$source_dir/compose.yaml" "$source_dir/VERSION" "$staging/"
 chmod +x "$staging/scripts/abb"
 mv "$staging" "$destination"
 ln -sfn "$destination/scripts/abb" "$bin/abb"
+ln -sfn "$destination/connectors/tailscale/tailscale-proxy" "$bin/tailscale-proxy"
 echo "Installed CLI $version at $bin/abb. Add $bin to PATH if needed."
 echo 'Next: abb init [viewer-port]. No Docker settings, secrets, or services were changed.'

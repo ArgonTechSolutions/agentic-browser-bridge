@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Reusable HTTP CONNECT / SOCKS5 connector; intentionally independent of ABB.
+set -euo pipefail
+umask 077
+app_dir=$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" && pwd)
+name=${PROXY_CONNECTOR_NAME:-default}
+[[ "$name" =~ ^[a-z][a-z0-9-]{0,31}$ ]] || { echo 'Invalid PROXY_CONNECTOR_NAME (lowercase, 1-32 characters).' >&2; exit 2; }
+root=${PROXY_CONNECTOR_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/proxy-connectors}
+state="$root/tailscale/$name"
+project="tsproxy-$(id -u)-$name"
+action=${1:-help}; shift || true
+compose() { docker compose --project-name "$project" -f "$state/compose.yaml" "$@"; }
+ready() {
+  [[ -f "$state/compose.yaml" ]] || { echo 'Run tailscale-proxy init first.' >&2; exit 1; }
+  docker info --format '{{json .SecurityOptions}}' | grep -q rootless || { echo 'Use your own rootless Docker daemon.' >&2; exit 1; }
+}
+[[ $# == 0 ]] || { echo 'No positional arguments supported. Select with PROXY_CONNECTOR_NAME.' >&2; exit 2; }
+case "$action" in
+  init)
+    [[ ! -e "$state" ]] || { echo 'Connector already exists; no files changed.' >&2; exit 1; }
+    mkdir -p "$state"; chmod 700 "$state"
+    cp "$app_dir/compose.yaml" "$state/compose.yaml"
+    echo 'Connector configured. Run tailscale-proxy up, then tailscale-proxy login.'
+    ;;
+  up) ready; compose up -d ;;
+  login)
+    ready
+    # Interactive identity-provider approval; no auth key in arguments/config.
+    compose exec -T tailscale-proxy tailscale --socket=/tmp/tailscaled.sock up --timeout=60s --accept-dns=false --accept-routes=false --shields-up --hostname="$project" </dev/null
+    ;;
+  status) ready; compose exec -T tailscale-proxy tailscale --socket=/tmp/tailscaled.sock status </dev/null ;;
+  logout) ready; compose exec -T tailscale-proxy tailscale --socket=/tmp/tailscaled.sock logout </dev/null ;;
+  down) ready; compose down ;; # No -v: preserve device identity across restart.
+  endpoints)
+    printf 'Docker network: %s_proxy\nHTTP: http://tailscale-proxy:1055\nSOCKS5: socks5://tailscale-proxy:1055\n' "$project"
+    ;;
+  help|--help|-h)
+    echo 'Usage: tailscale-proxy {init|up|login|status|logout|down|endpoints}'
+    echo 'Select with PROXY_CONNECTOR_NAME=name. State is private under PROXY_CONNECTOR_HOME.'
+    ;;
+  *) echo 'Unknown command. Run tailscale-proxy help.' >&2; exit 2 ;;
+esac

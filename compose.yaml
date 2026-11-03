@@ -9,6 +9,8 @@ services:
     environment:
       ABB_VIEWER_PASSWORD_HASH: ${ABB_VIEWER_PASSWORD_HASH:?Run abb init to configure viewer authentication}
       ABB_ALLOWED_HOSTS: ${ABB_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
+      ABB_PROXY_SERVER: ${ABB_PROXY_SERVER:-}
+      ABB_PROXY_BYPASS: ${ABB_PROXY_BYPASS:-}
       ABB_IDLE_MINUTES: ${ABB_IDLE_MINUTES:-30}
       ABB_SECURE_COOKIES: ${ABB_SECURE_COOKIES:-0}
     volumes:

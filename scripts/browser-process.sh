@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
+# Validate before launching anything; process-substitution failures alone do not
+# propagate through mapfile, so collect output with an ordinary assignment first.
+proxy_output=$(node --input-type=module -e 'import {proxyArguments} from "/app/src/proxy.js"; for (const arg of proxyArguments()) console.log(arg);')
+proxy_args=()
+if [[ -n "$proxy_output" ]]; then mapfile -t proxy_args <<< "$proxy_output"; fi
 mkdir -p /tmp/abb /data/profile /data/downloads
 # A fresh container has no surviving Chromium process. Remove only its stale lock links.
 rm -f /data/profile/SingletonLock /data/profile/SingletonSocket /data/profile/SingletonCookie
@@ -27,7 +32,7 @@ x11vnc -display :99 -localhost -rfbport 5900 -nopw -forever -shared -noxdamage >
 chromium --no-sandbox --disable-dev-shm-usage --no-first-run --no-default-browser-check \
   --password-store=basic --user-data-dir=/data/profile --remote-debugging-address=127.0.0.1 \
   --remote-debugging-port=9222 --window-size=1440,850 --restore-last-session --disable-session-crashed-bubble \
-  about:blank >/tmp/chromium.log 2>&1 & pids+=("$!")
+  "${proxy_args[@]}" about:blank >/tmp/chromium.log 2>&1 & pids+=("$!")
 # Fail the workspace if a required component exits; Docker handles restart policy.
 wait -n "${pids[@]}"
 exit 1
