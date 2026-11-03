@@ -22,6 +22,8 @@ try {
   await viewer.getByLabel('Workspace password').fill('fixture-password');
   await viewer.getByRole('button', {name:'Sign in', exact:true}).click();
   await viewer.getByRole('switch', {name: 'Agent control'}).waitFor();
+  await viewer.waitForFunction(()=>!document.getElementById('idle').disabled);
+  if (await viewer.getByRole('button',{name:'Wake browser',exact:true}).isVisible()) await viewer.getByRole('button',{name:'Wake browser',exact:true}).click();
   await viewer.locator('#screen canvas').waitFor();
   await viewer.waitForFunction(() => document.querySelector('#screen canvas')?.width > 100);
   await viewer.getByRole('switch', {name: 'Agent control'}).click();
@@ -79,4 +81,7 @@ try {
   assert.match((await call('browser_snapshot',{tab:fixtureTab.tab})).content[0].text,/human/);
   await client.close();
   console.log('PASS: authenticated viewer/WebSocket, actual noVNC keyboard takeover, same-tab MCP continuation, screenshot, viewer idle protection, actual sleep/wake and restored profile.');
+} catch(error) {
+  try { console.error(execFileSync('docker',['logs',container],{encoding:'utf8'})); console.error(execFileSync('docker',['exec',container,'sh','-c','cat /tmp/chromium.log /tmp/x11vnc.log'],{encoding:'utf8'})); } catch {}
+  throw error;
 } finally { await client.close(); await browser?.close(); }
